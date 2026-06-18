@@ -1,0 +1,8 @@
+fastapi
+pydantic
+uvicorn
+asyncpg
+psycopg2-binary
+sqlalchemy
+alembic
+python-dotenv

@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: expense-tracker-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: expensedb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: supersecret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d expensedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expense-tracker-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: expense-tracker-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://admin:supersecret@db:5432/expensedb
+      DB_USER: admin
+      DB_PASSWORD: supersecret
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: expensedb
+    networks:
+      - expense-tracker-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: expense-tracker-postgres-data
+
+networks:
+  expense-tracker-network:
+    name: expense-tracker-network
+    driver: bridge

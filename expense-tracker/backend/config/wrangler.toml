@@ -1,0 +1,19 @@
+name = "expense-tracker-api"
+type = "python"
+main = "main.py"
+compatibility_date = "2024-06-14"
+compatibility_flags = [ "python_workers" ]
+
+[env.production]
+routes = [
+  { pattern = "api.example.com/api/*", zone_name = "example.com" }
+]
+
+# Hyperdrive Database Configuration (placeholder)
+# [[hyperdrive]]
+# id = "hyperdrive_id"
+# binding = "DB"
+
+# Environment variables (add as needed)
+# [env.production.vars]
+# DATABASE_URL = "postgresql://..."

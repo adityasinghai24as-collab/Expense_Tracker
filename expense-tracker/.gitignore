@@ -1,0 +1,59 @@
+# =========================
+# Local Automation & Secrets
+# =========================
+# NEVER push environment variables or local process trackers
+.dev.pids
+.env
+.env.local
+.dev.vars
+*.pem
+
+# =========================
+# Backend (Python / FastAPI)
+# =========================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# Testing and Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Database
+*.sqlite3
+*.db
+
+# =========================
+# Frontend (Node / React / Vite)
+# =========================
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production Build Output
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# IDEs and Operating System
+# =========================
+# Mac / Windows clutter
+.DS_Store
+Thumbs.db
+
+# VS Code / JetBrains
+.vscode/
+.idea/

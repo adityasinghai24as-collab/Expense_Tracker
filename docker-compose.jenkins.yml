@@ -1,0 +1,48 @@
+# Jenkins Local Development Setup
+# Usage: docker compose -f docker-compose.jenkins.yml up -d
+# Access: http://localhost:8080
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: jenkins.Dockerfile
+    container_name: jenkins
+    restart: unless-stopped
+    ports:
+      - "8080:8080"    # Jenkins Web UI
+      - "50000:50000"  # Jenkins agent connections
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker-in-Docker (host socket)
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - jenkins-net
+
+  # Optional: SonarQube for local code quality scanning
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - jenkins-net
+
+volumes:
+  jenkins_home:
+    name: jenkins-home-data
+  sonarqube_data:
+    name: sonarqube-data
+  sonarqube_logs:
+    name: sonarqube-logs
+
+networks:
+  jenkins-net:
+    driver: bridge

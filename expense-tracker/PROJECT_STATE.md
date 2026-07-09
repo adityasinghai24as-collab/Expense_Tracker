@@ -28,7 +28,19 @@
 - **Backend Image**: Python 3.11-slim (multi-stage build)
 - **Database Image**: postgres:15-alpine
 - **Networking**: expense-tracker-network (bridge)
-- **Target Deployment**: Koyeb (cloud application platform)
+- **Target Deployment**: Google Cloud Run + Neon (DB) + Cloudflare Pages (Frontend)
+- **CI/CD**: Jenkins Declarative Pipeline (multi-environment)
+- **IaC**: Terraform with GCS remote state (per-environment isolation)
+- **Code Quality**: SonarQube, Ruff, ESLint
+- **Security Scanning**: Trivy
+- **Feature Flags**: Environment-aware JSON config injected via Terraform
+
+### Environments
+| Environment | Branch | Cloud Run Suffix | Neon Branch |
+|---|---|---|---|
+| Development | `develop` | `-dev` | `dev` |
+| Staging | `staging` | `-staging` | `staging` |
+| Production | `main` | (none) | `main` |
 
 ---
 
@@ -137,7 +149,11 @@ CREATE TABLE users (
     email VARCHAR UNIQUE NOT NULL,
     username VARCHAR UNIQUE NOT NULL,
     full_name VARCHAR,
+    hashed_password VARCHAR NOT NULL,
     is_active BOOLEAN DEFAULT true,
+    features_enabled JSON,
+    refresh_token VARCHAR,
+    token_expires_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 )
@@ -149,6 +165,10 @@ CREATE TABLE users (
 - `username`: Unique username (indexed)
 - `full_name`: User's full name (optional)
 - `is_active`: Account status
+- `features_enabled`: JSON object for feature flags (e.g., {"ai_receipt_scan": true})
+- `hashed_password`: Bcrypt-hashed password (never store plaintext)
+- `refresh_token`: Current valid refresh token hash (nullable — null means logged out)
+- `token_expires_at`: When the refresh token expires
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
 - **Relationship**: One-to-Many with Expenses (cascade delete)
@@ -282,12 +302,22 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
 
 ### 🔨 In Progress / Next Steps (Priority Order)
 
-#### 1. **Add Authentication** (High Priority)
-   - Implement JWT token-based auth
-   - Add password hashing (bcrypt)
-   - Create login/logout endpoints
-   - Add middleware for protected routes
-   - **Files to create**: `backend/app/auth.py`, `backend/app/security.py`
+#### 1. **Add Feature Flagging System** (High Priority)
+   - Add `features_enabled` JSON column to User model
+   - Create Admin API endpoint `PUT /admin/users/{id}/features`
+   - Implement frontend FeatureFlagProvider context
+   - Note: Required before rolling out AI features to users.
+
+#### 2. **Add Authentication with Persistent Login** (High Priority)
+   - Implement JWT token-based auth (access token + refresh token)
+   - Add password hashing (bcrypt via passlib)
+   - Create auth endpoints: register, login, refresh, logout, me
+   - Store refresh token in HttpOnly cookie for persistent login
+   - Store refresh token hash in DB for server-side revocation
+   - Add `get_current_user` dependency for protected routes
+   - Frontend: AuthContext with silent token refresh on app load
+   - **Files to create**: `backend/app/auth.py`, `frontend/src/context/AuthContext.jsx`
+   - **Files to modify**: `backend/app/models.py`, `backend/app/schemas.py`
 
 #### 2. **Implement Expense CRUD Operations** (High Priority)
    - GET `/expenses` - List user expenses (with pagination)
@@ -319,16 +349,18 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
    - Validation error messages
    - Rate limiting
 
-#### 7. **Koyeb Production Deployment** (Lower Priority)
-   - Set up Koyeb PostgreSQL add-on or managed database
-   - Configure Koyeb environment variables
-   - Deploy via GitHub integration
-   - Health check configuration
+#### 7. **Multi-Environment Deployment via Terraform + Jenkins** (Lower Priority)
+   - Follow instructions in `docs/TERRAFORM_SETUP.md` and `docs/JENKINS_SETUP.md`
+   - Configure `environments/dev.tfvars`, `staging.tfvars`, `prod.tfvars`
+   - Jenkins auto-detects environment from branch (`develop`→dev, `staging`→staging, `main`→prod)
+   - Production deploys require manual approval gate
+   - Use `docs/DEPLOYMENT_CHECKLIST.md` for every deployment
 
 ### ⚠️ Known Limitations / Technical Debt
 
 - Database models are placeholders (User, Expense) - need expansion
-- No authentication system implemented
+- No authentication system implemented (Phase 3 — Tasks 10-16)
+- Persistent login requires HttpOnly cookie support (CORS must allow credentials)
 - No API endpoints for actual expense operations
 - No frontend pages (only connection status monitor)
 - Frontend API proxy only works during `npm run dev` (need to configure for production)
@@ -385,7 +417,8 @@ expense-tracker/
 │   │   ├── __init__.py
 │   │   ├── database.py          ← Async connection pool
 │   │   ├── models.py            ← SQLAlchemy ORM models
-│   │   └── schemas.py           ← Pydantic validation
+│   │   ├── schemas.py           ← Pydantic validation
+│   │   └── auth.py              ← [NEW] JWT auth, password hashing, token management
 │   ├── config/
 │   │   ├── requirements.txt     ← Python dependencies
 │   │   ├── .env.example         ← Env template
@@ -409,12 +442,29 @@ expense-tracker/
 │   └── src/
 │       ├── main.jsx             ← React entry point
 │       ├── App.jsx              ← Root component
-│       └── index.css            ← Global styles
+│       ├── index.css            ← Global styles
+│       ├── context/
+│       │   └── AuthContext.jsx   ← [NEW] Auth state, token refresh, useAuth hook
+│       └── pages/
+│           ├── Login.jsx         ← [NEW] Login page
+│           └── Register.jsx     ← [NEW] Registration page
 │
-└── docs/
-    ├── DOCKER_SETUP.md          ← Full Docker guide
-    ├── DOCKER_QUICK_REF.md      ← Docker command reference
-    └── DOCKER_ARCHITECTURE.txt  ← Architecture overview
+├── docs/
+│   ├── TERRAFORM_SETUP.md       ← Infrastructure deployment guide
+│   ├── JENKINS_SETUP.md         ← Jenkins CI/CD setup guide
+│   ├── DEPLOYMENT_CHECKLIST.md  ← Per-environment deployment checklist
+│   ├── DOCKER_SETUP.md          ← Full Docker guide
+│   ├── DOCKER_QUICK_REF.md      ← Docker command reference
+│   └── DOCKER_ARCHITECTURE.txt  ← Architecture overview
+├── infrastructure/
+│   ├── environments/
+│   │   ├── dev.tfvars           ← Development environment config
+│   │   ├── staging.tfvars       ← Staging environment config
+│   │   └── prod.tfvars          ← Production environment config
+│   ├── providers.tf             ← Terraform provider config (GCS backend)
+│   ├── variables.tf             ← Terraform input variables + feature flags
+│   ├── main.tf                  ← Terraform resource definitions (env-scoped)
+│   └── outputs.tf               ← Terraform outputs (URLs, flags)
 ```
 
 ---
@@ -448,7 +498,8 @@ expense-tracker/
 
 ✅ **Before Production**:
 - [ ] Change database password
-- [ ] Implement authentication system
+- [ ] Implement authentication system (Phase 3 — persistent login with JWT + refresh tokens)
+- [ ] Configure CORS properly (allow credentials for HttpOnly cookies)
 - [ ] Configure CORS properly
 - [ ] Set secure environment variables
 - [ ] Use HTTPS
@@ -498,20 +549,26 @@ docker compose down
 
 | File | Purpose |
 |------|---------|
-| `PROJECT_STATE.md` | This file - persistent memory |
-| `.github/copilot-instructions.md` | AI assistant instructions |
+| `PROJECT_STATE.md` | This file — persistent memory |
+| `README.md` | Main project README |
+| `Jenkinsfile` | CI/CD Pipeline (multi-environment) |
+| `sonar-project.properties` | SonarQube code quality config |
+| `architecture-study/high-level-design.md` | System architecture and requirements |
+| `architecture-study/security-checklist.md` | **OWASP ASVS / CIS / NIST security deployment checklist** |
+| `docs/TERRAFORM_SETUP.md` | Terraform infrastructure guide |
+| `docs/JENKINS_SETUP.md` | Jenkins CI/CD setup guide |
+| `docs/DEPLOYMENT_CHECKLIST.md` | Per-environment deployment checklist & rollback |
 | `docs/DOCKER_SETUP.md` | Full Docker guide |
 | `docs/DOCKER_QUICK_REF.md` | Docker commands |
 | `docs/DOCKER_ARCHITECTURE.txt` | Architecture overview |
 | `docs/POSTGRES_SETUP.md` | PostgreSQL setup |
 | `docs/DB_INTEGRATION.md` | Database integration |
 | `docs/QUICK_REFERENCE.md` | General quick reference |
-| `README.md` | Main project README |
 
 ---
 
 ## 🎓 Last Updated
 
-**Current Iteration**: Docker + FastAPI + PostgreSQL + React/Vite Setup Complete
-**Status**: Ready for feature development (authentication, expense CRUD)
-**Next Session**: Start with authentication system implementation
+**Current Iteration**: Multi-Environment CI/CD + Terraform IaC + Feature Flags Complete
+**Status**: Infrastructure fully automated. Ready for feature development (authentication with persistent login, expense CRUD)
+**Next Session**: Start with Phase 3 — Authentication (Tasks 13-16)

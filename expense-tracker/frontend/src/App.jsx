@@ -7,17 +7,25 @@ export default function App() {
 
   useEffect(() => {
     const checkHealth = async () => {
+      // TODO: SDE-2 Task 7 - Frontend to Backend Connection
+      // 1. Implement a fetch call to the backend health endpoint (e.g., '/api/health').
+      // 2. Handle the response and update the component state (isConnected, error).
+      // 3. Implement error handling (try/catch) for the fetch call.
+      
+      // TODO: SDE-2 Task 32 - Frontend Enterprise Readiness
+      // 1. Initialize an error tracking SDK (e.g., Sentry) at the root of the app.
+      // 2. Add structured analytics tracking for key user flows (e.g., "Expense Added").
+      // 3. Implement proper client-side caching (e.g., React Query / SWR) for API requests.
+      
       try {
         setLoading(true)
         const response = await fetch('/api/health')
-        if (response.ok) {
-          const data = await response.json()
-          setIsConnected(data.status === 'ok')
-          setError(null)
-        } else {
-          setIsConnected(false)
-          setError('Backend returned status: ' + response.status)
+        if (!response.ok) {
+          throw new Error(`Backend returned ${response.status}`)
         }
+        const data = await response.json()
+        setIsConnected(data.status === 'ok')
+        setError(null)
       } catch (err) {
         setIsConnected(false)
         setError('Failed to connect to backend: ' + err.message)
@@ -27,8 +35,9 @@ export default function App() {
     }
 
     checkHealth()
-    const interval = setInterval(checkHealth, 5000)
-    return () => clearInterval(interval)
+    // TODO: Consider if you want to poll the backend periodically (e.g., using setInterval)
+    // const interval = setInterval(checkHealth, 5000)
+    // return () => clearInterval(interval)
   }, [])
 
   return (

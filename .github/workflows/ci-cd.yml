@@ -1,0 +1,3 @@
+# DEPRECATED: This repository has migrated its CI/CD pipeline to Jenkins.
+# Please refer to the `Jenkinsfile` at the root of the repository.
+

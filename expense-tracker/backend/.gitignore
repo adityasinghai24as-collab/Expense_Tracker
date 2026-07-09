@@ -1,7 +1,10 @@
-# Environment variables
+# Environment variables — never commit real credentials
 .env
 .env.local
 .env.*.local
+config/.env.development
+config/.env.val
+config/.env.prod
 
 # Python
 __pycache__/

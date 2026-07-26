@@ -1,4 +1,6 @@
 
+# TODO: Task 35 - Add Frontend to Docker Compose
+# TODO: Task 47 - Performance & Caching (Redis caching configuration)
 services:
   db:
     image: postgres:15-alpine
@@ -19,6 +21,15 @@ services:
     networks:
       - expense-tracker-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: expense-tracker-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - expense-tracker-network
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -29,6 +40,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql+asyncpg://admin:supersecret@db:5432/expensedb
       DB_USER: admin
@@ -36,9 +49,55 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: expensedb
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: prod
     networks:
       - expense-tracker-network
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: expense-tracker-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+      - expense-tracker-network
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: expense-tracker-promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - expense-tracker-network
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: expense-tracker-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - ./config/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    networks:
+      - expense-tracker-network
+    depends_on:
+      - loki
 
 volumes:
   postgres_data:

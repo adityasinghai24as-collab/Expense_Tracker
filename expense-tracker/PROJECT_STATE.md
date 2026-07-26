@@ -276,9 +276,12 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
 - ✓ Named volume (expense-tracker-postgres-data) for persistence
 - ✓ Health checks on database container
 - ✓ Credentials configured (admin/supersecret - dev only)
+- ✓ Alembic asynchronous migrations configured
 
 #### Docker & DevOps
-- ✓ Docker Compose orchestration (db + backend)
+- ✓ Docker Compose orchestration (db + backend + redis)
+- [x] Integrate Loki logging stack for robust log management
+- [x] Transition Feature Flags to Role-Based Access Control (RBAC)ail) configured
 - ✓ Backend Dockerfile (multi-stage build for optimization)
 - ✓ .dockerignore for clean builds
 - ✓ Bridge network (expense-tracker-network) for container communication
@@ -299,45 +302,28 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
 - ✓ Connection status monitor component (App.jsx)
 - ✓ API proxy to backend (/api/* → localhost:8000)
 - ✓ Tailwind CSS styling
+- ✓ Custom `OtpInput` component (6-digit, auto-focus, paste support)
 
-### 🔨 In Progress / Next Steps (Priority Order)
+#### 1. **LaunchDarkly Integration** (Current Priority)
+   - [ ] Backend: Install server SDK, initialize singleton, update `require_feature`.
+   - [ ] Frontend: Install client SDK, wrap app in provider, hydrate context on login.
+   - [ ] Testing: Setup `TestData` mock source for offline development.
 
-#### 1. **Add Feature Flagging System** (High Priority)
-   - Add `features_enabled` JSON column to User model
-   - Create Admin API endpoint `PUT /admin/users/{id}/features`
-   - Implement frontend FeatureFlagProvider context
-   - Note: Required before rolling out AI features to users.
+#### 2. **Implement Enterprise Feature Expansion** (High Priority)
+   - [ ] Build `Recurring Expenses` system via background workers.
+   - [ ] Build `Advanced Analytics` aggregation endpoints.
+   - [ ] Implement `Budgets & Alerts` logic.
 
-#### 2. **Add Authentication with Persistent Login** (High Priority)
-   - Implement JWT token-based auth (access token + refresh token)
-   - Add password hashing (bcrypt via passlib)
-   - Create auth endpoints: register, login, refresh, logout, me
-   - Store refresh token in HttpOnly cookie for persistent login
-   - Store refresh token hash in DB for server-side revocation
-   - Add `get_current_user` dependency for protected routes
-   - Frontend: AuthContext with silent token refresh on app load
-   - **Files to create**: `backend/app/auth.py`, `frontend/src/context/AuthContext.jsx`
-   - **Files to modify**: `backend/app/models.py`, `backend/app/schemas.py`
+#### 2. **Build Agentic AI Architecture** (High Priority)
+   - [ ] Implement the `Autonomous Financial Advisor` (LangGraph Multi-Agent).
+   - [ ] Setup `Local RAG` for Financial Documents using ChromaDB.
+   - [ ] Add `Human-in-the-Loop` safety checks.
+   - [ ] Wire up `Self-Healing` tool execution.
+   - [ ] Implement `Voice-to-Action` frontend integration.
 
-#### 2. **Implement Expense CRUD Operations** (High Priority)
-   - GET `/expenses` - List user expenses (with pagination)
-   - POST `/expenses` - Create expense
-   - GET `/expenses/{id}` - Get specific expense
-   - PUT `/expenses/{id}` - Update expense
-   - DELETE `/expenses/{id}` - Delete expense
-   - **Files to modify**: `backend/main.py`
-
-#### 3. **Add Category Management** (Medium Priority)
-   - Create Category model in models.py
-   - Endpoints for CRUD operations on categories
-   - Link categories to expenses
-
-#### 4. **Frontend Features** (Medium Priority)
-   - Dashboard with expense statistics
-   - Expense form (create/edit)
-   - Expense list with filtering/sorting
-   - Category management UI
-   - User profile page
+#### 3. **Testing & QA** (Medium Priority)
+   - Ensure the AI features have strict testing and graceful fallbacks.
+   - Scale test the PostgreSQL instance under analytics load.
 
 #### 5. **Testing** (Medium Priority)
    - Pytest test suite for backend (unit + integration)
@@ -361,10 +347,6 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
 - Database models are placeholders (User, Expense) - need expansion
 - No authentication system implemented (Phase 3 — Tasks 10-16)
 - Persistent login requires HttpOnly cookie support (CORS must allow credentials)
-- No API endpoints for actual expense operations
-- No frontend pages (only connection status monitor)
-- Frontend API proxy only works during `npm run dev` (need to configure for production)
-- No database migrations set up (Alembic installed but not configured)
 - No error handling middleware in FastAPI
 
 ---
@@ -385,8 +367,12 @@ main.py (FastAPI app)
 docker-compose.yml
 ├── db service (postgres:15-alpine)
 │   └── Volume: postgres_data
+├── redis service (redis:7-alpine)
+├── loki service (grafana/loki)
+├── promtail service (grafana/promtail)
+├── grafana service (grafana/grafana)
 ├── backend service (builds ./backend/Dockerfile)
-│   └── depends_on: db (health condition)
+│   └── depends_on: db, redis
 └── network: expense-tracker-network (bridge)
 ```
 
@@ -443,6 +429,8 @@ expense-tracker/
 │       ├── main.jsx             ← React entry point
 │       ├── App.jsx              ← Root component
 │       ├── index.css            ← Global styles
+│       ├── components/
+│       │   └── OtpInput.jsx     ← [NEW] Custom OTP input UI
 │       ├── context/
 │       │   └── AuthContext.jsx   ← [NEW] Auth state, token refresh, useAuth hook
 │       └── pages/
@@ -564,11 +552,14 @@ docker compose down
 | `docs/POSTGRES_SETUP.md` | PostgreSQL setup |
 | `docs/DB_INTEGRATION.md` | Database integration |
 | `docs/QUICK_REFERENCE.md` | General quick reference |
+| `docs/AGENTIC_AI_SETUP.md` | Setup guide for the Agentic AI implementation |
+| `docs/launchdarkly-integration-guide.md` | **[NEW]** Setup guide for LaunchDarkly SDK integration |
+| `docs/RBAC.md` | **[NEW]** Guide to Role-Based Access Control and subscription tiers |
 
 ---
 
 ## 🎓 Last Updated
 
-**Current Iteration**: Multi-Environment CI/CD + Terraform IaC + Feature Flags Complete
-**Status**: Infrastructure fully automated. Ready for feature development (authentication with persistent login, expense CRUD)
-**Next Session**: Start with Phase 3 — Authentication (Tasks 13-16)
+**Current Iteration**: Phase 11 (Enterprise & Agentic AI Expansion).
+**Status**: Core application (Auth, CRUD, UI, Docker, CI/CD) is fully built and deployed. We are now expanding the application into an enterprise-grade Autonomous Financial Advisor using LangChain, LangGraph, and RAG.
+**Next Session**: Begin executing tasks in Phase 11 of `TODO.md` (Starting with Task 48: Recurring Expenses, or Task 57: Autonomous Agent).

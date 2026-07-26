@@ -1,12 +1,12 @@
-# Expense Tracker - Educational Monorepo
+# Expense Tracker - Full-Stack Enterprise Monorepo
 
-Welcome to the **Expense Tracker** project! This is a full-stack learning project designed to help you explore modern web development, cloud-native infrastructure, and enterprise-grade CI/CD — tailored for developers transitioning into software architecture roles.
+Welcome to the **Expense Tracker** project! This is a production-grade full-stack application demonstrating modern web development, cloud-native infrastructure, and enterprise-grade CI/CD — built with enterprise architectural standards.
 
 ## 🚀 What is this project?
 
 The Expense Tracker allows users to sign up, log their daily expenses, categorize them, and track their spending habits over time. Behind the scenes, it demonstrates best practices in project scaffolding, dependency injection, containerization, infrastructure-as-code, and full-stack integration.
 
-*(Note: Advanced AI features like Receipt Scanning and Smart Categorization are controlled via **feature flags** and can be toggled per environment.)*
+*(Note: Advanced features like the **Autonomous Multi-Agent Financial Advisor**, **Local RAG**, and **Human-in-the-Loop Safety** are controlled via **LaunchDarkly**. This enterprise-grade feature management system enables local evaluation, backend kill switches, and targeted canary releases per environment.)*
 
 ### Core Tech Stack
 
@@ -26,6 +26,7 @@ The Expense Tracker allows users to sign up, log their daily expenses, categoriz
 expense-tracker/
 ├── backend/                 # FastAPI Application
 │   ├── app/                 # Core logic (routers, models, schemas, feature_flags)
+│   ├── ai/                  # Multi-Agent LangGraph Orchestrator (State, Tools, Graph)
 │   ├── config/              # Environment variables & configurations
 │   ├── scripts/             # Utility scripts for local setup
 │   ├── main.py              # Application Entry Point
@@ -48,7 +49,8 @@ expense-tracker/
 │   ├── JENKINS_SETUP.md
 │   ├── DEPLOYMENT_CHECKLIST.md
 │   ├── DOCKER_SETUP.md
-│   └── DOCKER_QUICK_REF.md
+│   ├── DOCKER_QUICK_REF.md
+│   └── AGENTIC_AI_SETUP.md  # Setup guide for local RAG & LangGraph
 ├── docker-compose.yml       # Local services orchestrator
 ├── Jenkinsfile              # CI/CD Pipeline definition
 ├── sonar-project.properties # SonarQube configuration
@@ -112,25 +114,27 @@ Production deployments require a **manual approval gate**.
 *   [Jenkins Setup Guide](expense-tracker/docs/JENKINS_SETUP.md)
 *   [Deployment Checklist](expense-tracker/docs/DEPLOYMENT_CHECKLIST.md)
 
-### Feature Flags
+### LaunchDarkly Feature Management
 
-Feature availability is controlled per-environment via a `FEATURE_FLAGS` JSON env var injected by Terraform:
+This project uses **LaunchDarkly** for robust feature flag management instead of static environment variables. This enables:
+*   **Backend Kill Switches**: Instantly pause sensitive operations (e.g., executing transactions or AI actions) without deploying code.
+*   **Local Evaluation**: The FastAPI backend initializes a LaunchDarkly Server-Side SDK singleton to cache rulesets locally, ensuring zero-latency flag evaluations.
+*   **Canary Releases**: The React frontend uses dynamic Context updates to gradually roll out features to specific user tiers (Free vs Pro).
 
-| Flag | Dev | Staging | Prod |
-|---|---|---|---|
-| `enable_receipt_scanning` | ✅ | ✅ | ❌ |
-| `enable_smart_categorization` | ✅ | ✅ | ❌ |
-| `enable_debug_mode` | ✅ | ❌ | ❌ |
-| `enable_rate_limiting` | ❌ | ✅ | ✅ |
+**Local Development Strategy**: To prevent hitting production flags during local development, developers use the LaunchDarkly `TestData` mock source or the fallback `.env` defaults, as outlined in the [LaunchDarkly Setup Guide](expense-tracker/docs/launchdarkly-integration-guide.md).
 
-Flags are configured in `infrastructure/environments/<env>.tfvars` and can be inspected at runtime via `GET /admin/feature-flags`.
+| Flag Pattern | Purpose |
+|---|---|
+| `feat-*` | New functionality rollouts (e.g., `feat-receipt-scanning`) |
+| `kill-*` | Operational kill switches (e.g., `kill-order-execution`) |
 
-## 🧠 Educational Goals
+Flags can be inspected at runtime via `GET /admin/feature-flags` (Admin only).
 
-Throughout the codebase, you will find `TODO: SDE-2 Task X` comments. These are intentional!
-Parts of the database connection logic, frontend data fetching, and more advanced architectural pieces have been left blank to serve as practical learning exercises.
+## 🧠 Architecture & Task Roadmap
 
-Your goal is to follow the hints, complete the tasks, and successfully connect the entire stack!
+Throughout the codebase, you will find `TODO: Task X` comments outlining structured architecture tasks and feature enhancements.
+
+Refer to `TODO.md` and `PROJECT_STATE.md` for a comprehensive list of task priorities, implementation status, and architectural milestones across the stack.
 
 ## 📌 Project Tracking
 Please refer to the `PROJECT_STATE.md` file for an in-depth view of the database schema, environment variable setup, architectural overview, and the priority list of pending tasks.

@@ -1,5 +1,5 @@
 fastapi
-pydantic
+pydantic[email]
 uvicorn
 asyncpg
 psycopg2-binary
@@ -8,3 +8,17 @@ alembic
 python-dotenv
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+disposable-email-domains
+resend
+
+# Testing & Load Testing
+pytest
+pytest-asyncio
+httpx
+locust
+
+# Enterprise Readiness (Observability & Security)
+structlog
+sentry-sdk[fastapi]
+redis
+fastapi-limiter

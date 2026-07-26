@@ -1,0 +1,12 @@
+// TODO: Task 42 & 43 - CI/CD Pipeline
+// Define Jenkins declarative pipeline here
+pipeline {
+    agent any
+    stages {
+        stage('Placeholder') {
+            steps {
+                echo 'CI/CD Pipeline to be implemented'
+            }
+        }
+    }
+}

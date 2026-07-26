@@ -7,11 +7,11 @@ Write-Host "===============================================" -ForegroundColor Gr
 # Get the root directory (quoted to handle spaces in path)
 $rootDir = (Get-Location).Path
 
-# 1. Start the Database (Docker Compose - background)
-# Only spin up the 'db' service. The backend runs natively (below) for easier debugging
+# 1. Start the Database and Redis (Docker Compose - background)
+# Only spin up the 'db' and 'redis' services. The backend runs natively (below) for easier debugging
 # and hot-reload. The full 'docker compose up -d' is reserved for Phase 5 (containerized stack).
-Write-Host "`n[1/3] Spinning up PostgreSQL via Docker..." -ForegroundColor Cyan
-docker compose up db -d
+Write-Host "`n[1/3] Spinning up PostgreSQL and Redis via Docker..." -ForegroundColor Cyan
+docker compose up db redis -d
 
 Write-Host "     Database starting - waiting 3 seconds for initialization..." -ForegroundColor DarkCyan
 Start-Sleep -Seconds 3
@@ -19,7 +19,8 @@ Start-Sleep -Seconds 3
 # 2. Start the Backend (FastAPI - new window)
 Write-Host "`n[2/3] Launching FastAPI Backend on port 8000..." -ForegroundColor Cyan
 $backendDir = Join-Path $rootDir "backend"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendDir'; Write-Host 'Backend starting... Press Ctrl+C to stop' -ForegroundColor Yellow; python main.py"
+$venvPath = Join-Path $rootDir ".venv\Scripts\Activate.ps1"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$backendDir'; if (Test-Path '$venvPath') { . '$venvPath' }; Write-Host 'Backend starting... Press Ctrl+C to stop' -ForegroundColor Yellow; python main.py"
 
 # 3. Start the Frontend (Vite - new window)
 Write-Host "[3/3] Launching Vite React Frontend on port 5173..." -ForegroundColor Cyan

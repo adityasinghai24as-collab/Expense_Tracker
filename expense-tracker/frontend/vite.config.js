@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// TODO: Task 40 - Frontend Tests
 export default defineConfig({
   plugins: [react()],
   server: {

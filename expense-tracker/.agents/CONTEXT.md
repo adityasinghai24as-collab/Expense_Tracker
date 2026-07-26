@@ -1,3 +1,10 @@
+# Project Rules — Expense Tracker
+
+## Context & Token Efficiency
+- Always consult `TODO.md`, `PROJECT_STATE.md`, `github/copilot-instructions.md`,`architecture-study/high-level-design.md` first for project context before reading source code files.
+- Use the .md documentation as the primary source of truth for task descriptions, architecture decisions, and current progress.
+- Only read source files when you need to see the actual implementation details or make edits.
+
 # Copilot Instructions - Expense Tracker Monorepo
 
 ## 🎯 MANDATORY PRE-PROCESSING INSTRUCTION
@@ -18,13 +25,13 @@
 
 ## 📋 Context Summary (Quick Reference)
 
-This monorepo is a **full-stack Expense Tracker** targeting **Koyeb** deployment:
+This monorepo is a **full-stack Expense Tracker** targeting **Google Cloud Run** deployment:
 
 ### Architecture
 - **Backend**: FastAPI + SQLAlchemy async ORM + PostgreSQL 15
 - **Frontend**: React 18 + Vite + Tailwind CSS
 - **Containerization**: Docker Compose (development), Dockerfile (production)
-- **Deployment**: Docker containers (local) → Koyeb (production)
+- **Deployment**: Docker containers (local) → Google Cloud Run (production)
 
 ### Tech Stack
 ```
@@ -164,7 +171,7 @@ else:
 7. Frontend testing (Jest)
 
 **Lower Priority**:
-8. Production deployment (Koyeb)
+8. Production deployment (Google Cloud Run)
 9. Advanced features (reports, analytics)
 
 ---
@@ -273,3 +280,8 @@ Before submitting code or making recommendations, ask yourself:
 **Last Updated**: When PROJECT_STATE.md was created  
 **Scope**: All prompts and code generation for this monorepo  
 **Enforcement**: Mandatory - read before responding to ANY user request
+
+---
+
+## 📖 Learned Rules
+- Always update documentation and markdown files when adding new features.

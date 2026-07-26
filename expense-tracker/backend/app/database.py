@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------------
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 
-_config_dir = Path(__file__).resolve().parents[2] / "config"
+_config_dir = Path(__file__).resolve().parents[1] / "config"
 _env_file_map = {
     "development": _config_dir / ".env.development",
     "val":         _config_dir / ".env.val",
@@ -29,23 +29,20 @@ _env_file_map = {
 }
 
 _env_file = _env_file_map.get(APP_ENV, _env_file_map["development"])
-load_dotenv(dotenv_path=_env_file, override=True)
+load_dotenv(dotenv_path=_env_file, override=False)
 print(f"[config] APP_ENV={APP_ENV!r} → loaded {_env_file.name}")
 
-# TODO: SDE-2 Task 1 - Database Configuration
-# 1. Read the database URL from environment variables (e.g., DATABASE_URL).
-# 2. Implement logic to handle individual env vars (DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)
-#    if DATABASE_URL is not provided.
-# 3. Create SYNC_DATABASE_URL and ASYNC_DATABASE_URL strings.
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
     # Production environments (Docker, cloud hosting) often provide a single DATABASE_URL
-    SYNC_DATABASE_URL = DATABASE_URL
+    # Normalize: strip any driver suffix to get a clean sync URL first
+    SYNC_DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
     # Ensure it uses postgresql instead of the older postgres scheme
     if SYNC_DATABASE_URL.startswith("postgres://"):
         SYNC_DATABASE_URL = SYNC_DATABASE_URL.replace("postgres://", "postgresql://", 1)
-    # Derive the async URL from the sync one
+    # Derive the async URL from the clean sync one
     ASYNC_DATABASE_URL = SYNC_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 else:
     # Local development uses individual variables from .env
@@ -58,10 +55,18 @@ else:
     SYNC_DATABASE_URL = f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
     ASYNC_DATABASE_URL = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
 
-# TODO: SDE-2 Task 2 - Database Engines and Sessions
-# 1. Create an async_engine using create_async_engine and ASYNC_DATABASE_URL.
-# 2. Create an AsyncSessionLocal session factory using sessionmaker and the async_engine.
-async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=True, pool_pre_ping=True)
+# Optimize connection pooling for high concurrency (e.g. Locust load testing)
+# Conditionally disable SQL echoing if not in development to avoid console bottleneck
+is_development = APP_ENV == "development"
+
+# Task 2 - Create the Async Engine and Session Factory (Completed)
+async_engine = create_async_engine(
+    ASYNC_DATABASE_URL, 
+    echo=is_development, 
+    pool_pre_ping=True,
+    pool_size=20,
+    max_overflow=10
+)
 AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 # Base class for models
@@ -70,9 +75,7 @@ Base = declarative_base()
 
 async def get_db():
     """Dependency for FastAPI endpoints to get database session"""
-    # TODO: SDE-2 Task 3 - Dependency Injection
-    # 1. Implement a generator that yields an async database session from AsyncSessionLocal.
-    # 2. Ensure the session is properly closed after use (e.g., using a try/finally block).
+
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -82,9 +85,7 @@ async def get_db():
 
 async def check_db_connection():
     """Test async connection to PostgreSQL"""
-    # TODO: SDE-2 Task 4 - Async Connection Check
-    # 1. Implement logic to test the async connection to the database (e.g., using asyncpg).
-    # 2. Return a tuple (True, "Connected successfully") on success, or (False, error_message) on failure.
+
     try:
         conn = await asyncpg.connect(SYNC_DATABASE_URL)
         await conn.execute("SELECT 1")
@@ -96,9 +97,7 @@ async def check_db_connection():
 
 def check_db_connection_sync():
     """Test sync connection to PostgreSQL"""
-    # TODO: SDE-2 Task 5 - Sync Connection Check
-    # 1. Implement logic to test the sync connection to the database (e.g., using SQLAlchemy engine).
-    # 2. Return a tuple (True, "Connected successfully") on success, or (False, error_message) on failure.
+
     try:
         engine = create_engine(SYNC_DATABASE_URL, poolclass=NullPool)
         with engine.connect() as conn:
@@ -111,8 +110,40 @@ def check_db_connection_sync():
 
 async def init_db():
     """Initialize database tables"""
-    # TODO: SDE-2 Task 6 - Database Initialization
-    # 1. Implement logic to create all tables defined in your models using the async_engine.
-    #    Hint: use `conn.run_sync(Base.metadata.create_all)`.
+
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+    # Seed default categories if none exist
+    from sqlalchemy import select, delete
+    from .models import Category
+    
+    async with AsyncSessionLocal() as session:
+        # Cleanup: Remove any old categories that don't have an icon
+        await session.execute(delete(Category).where(Category.icon.is_(None)))
+        await session.commit()
+        
+        # Sync global categories with the frontend (categoryDetector.js)
+        desired_categories = [
+            {"name": "Food", "color": "#EF4444", "icon": "🍔"},
+            {"name": "Transport", "color": "#3B82F6", "icon": "🚗"},
+            {"name": "Utilities", "color": "#EAB308", "icon": "🏠"},
+            {"name": "Entertainment", "color": "#A855F7", "icon": "🎬"},
+            {"name": "Groceries", "color": "#10B981", "icon": "🛒"},
+            {"name": "Healthcare", "color": "#EC4899", "icon": "🏥"},
+            {"name": "Shopping", "color": "#F97316", "icon": "🛍️"},
+            {"name": "Travel", "color": "#06B6D4", "icon": "✈️"},
+            {"name": "Education", "color": "#8B5CF6", "icon": "📚"},
+            {"name": "Fitness", "color": "#84CC16", "icon": "💪"},
+            {"name": "Subscriptions", "color": "#6366F1", "icon": "📱"},
+            {"name": "Dining", "color": "#F43F5E", "icon": "🍽️"},
+            {"name": "Other", "color": "#6B7280", "icon": "📌"},
+        ]
+        
+        for cat_data in desired_categories:
+            result = await session.execute(select(Category).where(Category.name == cat_data["name"], Category.user_id.is_(None)))
+            existing = result.scalar_one_or_none()
+            if not existing:
+                session.add(Category(name=cat_data["name"], color=cat_data["color"], icon=cat_data["icon"], user_id=None))
+                
+        await session.commit()

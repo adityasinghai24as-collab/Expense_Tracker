@@ -16,10 +16,25 @@ The Expense Tracker is a full-stack web application designed to help users manag
     *   Users can assign expenses to predefined or custom categories (e.g., Food, Transport, Utilities).
 *   **Analytics/Reporting**:
     *   Users can view a dashboard summarizing their total expenses, category breakdowns, and recent transactions.
-*   **AI-Powered Features**: *(Note: These features are currently in Beta and controlled via feature flags. They may not be visible to all users.)*
-    *   **Receipt Scanning**: Users can upload receipt images for automatic data extraction (amount, date, description).
+*   **AI-Powered Features & Multi-Agent Orchestration**: *(Note: These features are currently in Beta and controlled via feature flags. They may not be visible to all users.)*
+    *   **Autonomous Financial Advisor**: A LangGraph-powered multi-agent system (Supervisor, Analyst, Action Executor) that autonomously manages finances via natural language.
+    *   **Local RAG for Financial Documents**: Chat with uploaded bank statements or tax forms using local vector databases (ChromaDB) and embeddings.
+    *   **Human-in-the-Loop (HITL) Safety**: Graph execution pauses for explicit user approval via the UI before executing destructive or high-stakes actions.
+    *   **Self-Healing Agents**: Agents autonomously catch, reflect on, and recover from tool execution errors.
+    *   **Voice-to-Action**: Log expenses using voice via Web Speech API integration.
+    *   **Receipt Scanning**: Users can upload receipt images for automatic data extraction (amount, date, merchant) using Vision APIs.
     *   **Smart Categorization**: The system automatically suggests expense categories based on descriptions.
-    *   **Spending Insights**: Generates natural language insights about user spending habits.
+    *   **Spending Insights**: Generates natural language insights about user spending habits using LLMs.
+*   **Advanced Tracking & Multi-currency**:
+    *   **Multi-Currency Support**: Log expenses in native currencies and auto-convert to a base currency (USD) using live FX rates.
+    *   **Split Transactions**: Split a single receipt across multiple distinct categories.
+    *   **Tags & Geolocation**: Add custom `#tags`, attach PDF invoices, and log GPS coordinates.
+*   **Automation & Planning**:
+    *   **Recurring Expenses**: Background cron jobs automatically generate records for subscriptions (Netflix, Rent).
+    *   **Budgets & Alerts**: Users set spending limits per category. The system fires alerts when nearing limits (e.g., 90%).
+*   **Multiplayer & Export**:
+    *   **Shared Wallets (Groups)**: Allow roommates or couples to share an expense book with "who owes who" settlements.
+    *   **Advanced Analytics & Export**: View Month-over-Month heatmaps and export full data to CSV/PDF.
 
 ### 2.2 Non-Functional Requirements
 *   **Performance**: The application should load quickly and respond to API requests with minimal latency (e.g., < 200ms for standard CRUD operations). Endpoints interfacing with external AI models (like receipt scanning) should be handled gracefully, potentially using asynchronous processing to prevent blocking.
@@ -54,6 +69,7 @@ The system follows a classic 3-tier architecture:
 
 ### 3.2 Application Tier (Backend API)
 *   **Framework**: FastAPI (Python)
+*   **AI Frameworks**: LangChain, LangGraph (for multi-agent orchestration)
 *   **Server**: Uvicorn (ASGI)
 *   **Responsibilities**: 
     *   Expose RESTful endpoints for the frontend.
@@ -68,12 +84,19 @@ The system follows a classic 3-tier architecture:
     *   Persistently store user data, expenses, and categories.
     *   Ensure data integrity through relational constraints (Foreign Keys).
 
-### 3.4 External Services (AI Integration)
-*   **Provider**: External AI Models (e.g., OpenAI, Google Gemini, AWS Textract).
-*   **Responsibilities**: 
-    *   Process receipt images for OCR and structured data extraction.
-    *   Analyze text for automatic expense categorization.
-    *   Provide natural language analysis of user spending data.
+### 3.4 External Services & APIs
+*   **AI Providers**: External AI Models (e.g., OpenAI, Google Gemini, AWS Textract) for OCR receipt scanning and natural language spending insights.
+*   **Financial APIs**: Exchange Rate APIs (e.g., OpenExchangeRates) to fetch live FX conversions for multi-currency transactions.
+*   **LaunchDarkly**: Enterprise feature flag management service used for remote config, kill switches, and targeted feature rollouts.
+
+### 3.5 Container Roles (Docker Compose)
+The application runs locally using Docker Compose, orchestrating the following containers:
+*   **`backend` (FastAPI Application)**: The core Python web server exposing REST API endpoints. It handles authentication, business logic, and orchestrates reads/writes to the database.
+*   **`postgres` (PostgreSQL Database)**: Provides persistent storage (Source of Truth) for users, passwords, expense records, and categories. Connected via SQLAlchemy and the async `asyncpg` driver.
+*   **`redis` (In-Memory Data Store)**: Intended for rate limiting (preventing API abuse), caching heavy database queries, and acting as a message broker for background tasks (e.g., async emails).
+*   **`promtail` (Log Collector)**: Part of the PLG observability stack. It watches local log files generated by containers, attaches metadata/labels, and ships them over the network.
+*   **`loki` (Log Aggregation Database)**: Receives log streams from Promtail. It efficiently indexes only the log labels and compresses the actual text, making it a highly scalable centralized log database.
+*   **`grafana` (Visualization Dashboard)**: Provides a web UI to query, visualize, and set alerts on the log data stored in Loki using LogQL.
 
 ## 4. Planned Components & Services
 
@@ -83,7 +106,9 @@ The system follows a classic 3-tier architecture:
 4.  **Expense Service (Logical)**: Contains the core business logic for managing financial records.
 5.  **PostgreSQL Database**: The relational data store.
 6.  **AI Integration Service**: Handles communication with external LLM and Vision APIs to process unstructured data (images, text) into structured expense data and insights.
-7.  **Feature Flag Service (Logical)**: Manages and resolves the state of feature flags for users, controlling access to new capabilities like AI features via a JSON column in the database.
+7.  **Multi-Agent Orchestrator (LangGraph)**: A stateful AI supervisor managing specialized sub-agents (e.g., Analyst Agent, Action Agent) capable of autonomously querying and mutating user data via LangChain tools.
+8.  **Feature Flag Service (LaunchDarkly)**: Replaces the logical/JSON-based feature flags. Provides server-side local evaluation (zero-latency caching) for backend kill switches and client-side context hydration for React UI toggles.
+9.  **Background Worker / Cron**: A dedicated worker process (e.g., Celery/APScheduler) for processing recurring subscriptions and generating weekly AI insights.
 
 ## 5. Deployment Architecture
 *   **Containerization**: Both the Backend and Frontend will be containerized using Docker.

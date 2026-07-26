@@ -1,4 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+import os
+import sentry_sdk
+from starlette.datastructures import MutableHeaders
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,8 +11,28 @@ from app.database import (
     check_db_connection_sync,
     init_db,
 )
+from app.routers import auth_routes, user_routes, expense_routes, category_routes
+from app.exceptions import register_exception_handlers
+from app.logger import setup_logging
+
+# ==========================================
+# Task 23 - Observability (Logging & Sentry) Completed
+# ==========================================
+# Initialize structured logging
+setup_logging()
+
+# Initialize Sentry if configured
+sentry_dsn = os.environ.get("SENTRY_DSN", "")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        traces_sample_rate=1.0,
+    )
 
 app = FastAPI(title="Expense Tracker API", version="1.0.0")
+
+# Register Error Handlers
+register_exception_handlers(app)
 
 # CORS Configuration
 app.add_middleware(
@@ -32,13 +55,25 @@ class DBHealthResponse(BaseModel):
     database: str
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get(
+    "/health", 
+    response_model=HealthResponse,
+    responses={
+        200: {"description": "API is healthy and running"}
+    }
+)
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "message": "Expense Tracker API is running"}
 
 
-@app.get("/health/db", response_model=DBHealthResponse)
+@app.get(
+    "/health/db", 
+    response_model=DBHealthResponse,
+    responses={
+        200: {"description": "Database connection status checked (can be 'ok' or 'error' depending on the database state)"}
+    }
+)
 async def db_health_check():
     """Check database connection status"""
     is_connected, message = await check_db_connection()
@@ -62,48 +97,49 @@ async def startup_event():
     except Exception as e:
         print(f"❌ Error initializing database: {e}")
 
-# ==========================================
-# TODO: SDE-2 Task 18 - User Endpoints
-# ==========================================
-# 1. Create POST /users to register a new user
-# 2. Create GET /users to list users
-# 3. Create GET /users/{user_id} to get a specific user
-# Use the UserCreate and UserResponse schemas for validation.
+# User Endpoints (Task 18 Completed)
+app.include_router(user_routes.router, prefix="/users", tags=["Users"])
+
+# Expense Endpoints (Task 19 Completed)
+app.include_router(expense_routes.router, prefix="/expenses", tags=["Expenses"])
+
+app.include_router(auth_routes.router, prefix="/auth", tags=["Auth"])
+
+# Error Handling (Task 20 Completed)
+
+# Category Endpoints (Task 21 Completed)
+app.include_router(category_routes.router, prefix="/categories", tags=["Categories"])
+
+# TODO: Task 37 - Backend Feature Flags: Add GET /admin/feature-flags endpoint
+# TODO: Task 38 - Production Hardening: Add rate limiting
+# TODO: Task 46 - Rate Limiting: Implement Rate Limiting on the backend API
+
 
 # ==========================================
-# TODO: SDE-2 Task 19 - Expense Endpoints
+# Task 22 - Security Headers (Completed)
 # ==========================================
-# 1. Create POST /expenses to add a new expense
-# 2. Create GET /expenses to list all expenses (add pagination!)
-# 3. Create GET /expenses/{expense_id} to get a specific expense
-# 4. Create PUT /expenses/{expense_id} to update an expense
-# 5. Create DELETE /expenses/{expense_id} to delete an expense
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-# ==========================================
-# TODO: SDE-2 Task 14 - Create Auth Endpoints
-# ==========================================
-# 1. POST /auth/register
-# 2. POST /auth/login
-# 3. POST /auth/refresh
-# 4. POST /auth/logout
-# 5. GET /auth/me
-# 6. Secure the expense endpoints using the get_current_user dependency
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
 
-# ==========================================
-# TODO: SDE-2 Task 26 - Load & Unit Testing
-# ==========================================
-# 1. Integrate robust unit testing for all endpoints using pytest.
-# 2. Create load testing scripts (e.g., Locust or k6) to simulate 1000s of concurrent users.
-# 3. Optimize DB connection pooling and analyze slow queries if load tests reveal bottlenecks.
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers.append("X-Content-Type-Options", "nosniff")
+                headers.append("X-Frame-Options", "DENY")
+                headers.append("X-XSS-Protection", "1; mode=block")
+                headers.append("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+                headers.append("Referrer-Policy", "strict-origin-when-cross-origin")
+                headers.append("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https://fastapi.tiangolo.com;")
+            await send(message)
 
-# ==========================================
-# TODO: SDE-2 Task 28 - Enterprise Readiness (Observability & Security)
-# ==========================================
-# 1. Integrate structured JSON logging (e.g., using structlog).
-# 2. Add an exception tracking middleware (like Sentry).
-# 3. Implement rate limiting using Redis (e.g., with fastapi-limiter).
-# 4. Implement an audit log for critical write operations in the database.
+        await self.app(scope, receive, send_wrapper)
 
+app.add_middleware(SecurityHeadersMiddleware)
 
 if __name__ == "__main__":
     import uvicorn

@@ -71,3 +71,13 @@ Developers should not need active internet connections or real LaunchDarkly keys
 ### Naming Conventions & Lifecycle
 *   **Naming**: Use kebab-case. Prefix flags logically: `feat-` (new features), `kill-` (kill switches), `ops-` (infrastructure toggles).
 *   **Lifecycle**: Feature flags incur technical debt. Once a `feat-` flag is fully rolled out to 100% of users, schedule a Jira ticket to remove the flag from both LaunchDarkly and the codebase.
+
+---
+
+## 🔗 See Also
+
+- [RBAC](RBAC.md) — Subscription tier gating (complements LaunchDarkly global flags)
+- [Feature Flags & RBAC (Deprecated)](FEATURE_FLAGS_AND_RBAC.md) — Previous static implementation
+- [High-Level Design](../architecture-study/high-level-design.md) — System architecture (§ Feature Flag Service)
+- [TODO.md](../TODO.md) — Phase 12 (Tasks 62-66) for LaunchDarkly implementation
+- **Key code files**: [`backend/app/feature_flags.py`](../backend/app/feature_flags.py), [`frontend/src/context/FeatureFlagContext.jsx`](../frontend/src/context/FeatureFlagContext.jsx), [`backend/main.py`](../backend/main.py) (startup/shutdown lifecycle)

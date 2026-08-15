@@ -51,3 +51,14 @@ async def chat_with_agent(
     
     return {"reply": "Agent response..."}
 ```
+
+---
+
+## 🔗 See Also
+
+- [LaunchDarkly Integration Guide](launchdarkly-integration-guide.md) — Global feature flag management (complements RBAC)
+- [Feature Flags & RBAC (Deprecated)](FEATURE_FLAGS_AND_RBAC.md) — Previous implementation (now redirects here)
+- [Security Checklist](../architecture-study/security-checklist.md) — Authentication & Authorization requirements
+- [User Guide](USER_GUIDE.md) — User-facing feature tier descriptions
+- [TODO.md](../TODO.md) — Phase 12 (LaunchDarkly + RBAC integration)
+- **Key code files**: [`backend/app/feature_flags.py`](../backend/app/feature_flags.py) (`require_feature`), [`backend/app/models.py`](../backend/app/models.py) (`features_enabled` property), [`backend/app/auth.py`](../backend/app/auth.py)

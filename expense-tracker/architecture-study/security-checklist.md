@@ -83,3 +83,15 @@
 - **End-to-End (E2E) Testing**: Simulate actual user journeys (e.g., via `Playwright` or `Cypress`) to verify that the frontend and backend integrate securely and correctly.
 - **Chaos Engineering**: Introduce controlled faults (e.g., dropping DB connections) to ensure graceful degradation and resilience.
 - **Contract Testing**: Verify that frontend and backend expectations (API schemas) do not break during deployments.
+
+---
+
+## 🔗 See Also
+
+- [High-Level Design](high-level-design.md) — System architecture and requirements
+- [Low-Level Design](low-level-design.md) — Design patterns and API spec
+- [TODO.md](../TODO.md) — Development roadmap (references this checklist throughout)
+- [Testing Guide](../docs/TESTING_GUIDE.md) — Unit, integration, and load testing
+- [Observability Guide](../docs/OBSERVABILITY_GUIDE.md) — Grafana + Loki logging
+- [RBAC](../docs/RBAC.md) — Role-Based Access Control
+- **Key code files**: [`backend/app/auth.py`](../backend/app/auth.py), [`backend/app/rate_limiter.py`](../backend/app/rate_limiter.py), [`backend/app/exceptions.py`](../backend/app/exceptions.py), [`backend/main.py`](../backend/main.py) (SecurityHeadersMiddleware)

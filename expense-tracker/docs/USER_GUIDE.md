@@ -38,7 +38,6 @@ This document provides a comprehensive overview of the Expense Tracker applicati
 - **Self-Healing Agents**: The AI catches its own errors and re-attempts actions automatically.
 - **Voice-to-Action**: Log expenses seamlessly using voice commands (Web Speech API).
 - **Receipt Scanning (OCR)**: Upload an image of a receipt to automatically extract the amount, date, and merchant.
-- **Receipt Scanning (OCR)**: Upload a picture of a receipt to automatically extract the total amount and date.
 - **Data Export**: Download your transaction history as a CSV file for personal record-keeping.
 
 ---
@@ -74,3 +73,13 @@ This document provides a comprehensive overview of the Expense Tracker applicati
 3. **Backend Validation**: FastAPI routes validate incoming data using Pydantic schemas.
 4. **Data Persistence**: SQLAlchemy async ORM handles secure, parameterized insertion into the PostgreSQL database.
 5. **Response**: The frontend receives the response and dynamically updates the React state without a full page reload.
+
+---
+
+## 🔗 See Also
+
+- [TODO.md](../TODO.md) — Full development roadmap and task checklists
+- [High-Level Design](../architecture-study/high-level-design.md) — System architecture and requirements
+- [RBAC](RBAC.md) — Subscription tier details (Free / Pro / Enterprise)
+- [Agentic AI Setup](AGENTIC_AI_SETUP.md) — AI feature implementation guide
+- **Key code files**: [`frontend/src/pages/`](../frontend/src/pages/), [`frontend/src/context/AuthContext.jsx`](../frontend/src/context/AuthContext.jsx), [`frontend/src/services/api.js`](../frontend/src/services/api.js)

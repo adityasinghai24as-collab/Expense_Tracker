@@ -105,6 +105,15 @@ In practice, you will rarely run `terraform apply` manually. The Jenkins pipelin
 - Pushes to `staging` → deploy to **staging**
 - Pushes to `main` → deploy to **prod** (with manual approval gate)
 
-To set up the pipeline, see the **[Jenkins Setup Guide](./JENKINS_SETUP.md)**.
+To set up the pipeline, see the **[Jenkins Setup Guide](JENKINS_SETUP.md)**.
 
-For a step-by-step deployment procedure, see the **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)**.
+For a step-by-step deployment procedure, see the **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)**.
+
+---
+
+## 🔗 See Also
+
+- [Jenkins Setup Guide](JENKINS_SETUP.md) — CI/CD pipeline automation
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) — Pre/post-deploy verification
+- [TODO.md](../TODO.md) — Phase 7 (Deployment tasks)
+- **Key code/config files**: [`infrastructure/main.tf`](../infrastructure/main.tf), [`infrastructure/variables.tf`](../infrastructure/variables.tf), [`infrastructure/providers.tf`](../infrastructure/providers.tf), [`infrastructure/outputs.tf`](../infrastructure/outputs.tf), [`infrastructure/environments/`](../infrastructure/environments/)

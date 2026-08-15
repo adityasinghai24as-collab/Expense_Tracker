@@ -1,6 +1,6 @@
 # Jenkins CI/CD Setup Guide
 
-This project uses a **Declarative Jenkins Pipeline** (`Jenkinsfile`) to automate Code Quality, Security Scanning, Unit Testing, and multi-environment Infrastructure Deployment via Terraform.
+This project uses a **Declarative Jenkins Pipeline** ([`Jenkinsfile`](../Jenkinsfile)) to automate Code Quality, Security Scanning, Unit Testing, and multi-environment Infrastructure Deployment via Terraform.
 
 ## Pipeline Architecture
 
@@ -143,4 +143,14 @@ After a successful build, check the Terraform outputs in the Jenkins console log
 
 The pipeline also runs a post-deploy **Smoke Test** that verifies the `/health`, `/health/db`, and `/admin/feature-flags` endpoints.
 
-For a comprehensive pre/post deployment procedure, see the **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)**.
+For a comprehensive pre/post deployment procedure, see the **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)**.
+
+---
+
+## 🔗 See Also
+
+- [Terraform Setup Guide](TERRAFORM_SETUP.md) — Infrastructure as Code deployment
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) — Pre/post-deploy steps and rollback
+- [Security Checklist](../architecture-study/security-checklist.md) — Production hardening (§ CI/CD Security)
+- [TODO.md](../TODO.md) — Phase 9 (CI/CD Pipeline tasks)
+- **Key code/config files**: [`Jenkinsfile`](../Jenkinsfile), [`sonar-project.properties`](../sonar-project.properties)

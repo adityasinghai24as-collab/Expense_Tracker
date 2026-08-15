@@ -94,3 +94,13 @@ terraform apply -var-file=environments/<ENV>.tfvars
 - [ ] Deployment verified by: ____________
 - [ ] Date/Time: ____________
 - [ ] Notes: ____________
+
+---
+
+## 🔗 See Also
+
+- [Jenkins Setup Guide](JENKINS_SETUP.md) — Pipeline configuration and CI/CD setup
+- [Terraform Setup Guide](TERRAFORM_SETUP.md) — Infrastructure as Code deployment
+- [Security Checklist](../architecture-study/security-checklist.md) — Production hardening requirements
+- [TODO.md](../TODO.md) — Phase 7 (Deployment) and Phase 9 (CI/CD)
+- **Key code/config files**: [`Jenkinsfile`](../Jenkinsfile), [`infrastructure/`](../infrastructure/), [`sonar-project.properties`](../sonar-project.properties)

@@ -113,4 +113,16 @@ The application runs locally using Docker Compose, orchestrating the following c
 ## 5. Deployment Architecture
 *   **Containerization**: Both the Backend and Frontend will be containerized using Docker.
 *   **Development**: Orchestrated using Docker Compose to spin up the API and Database simultaneously.
-*   **Production**: The Backend Docker image will be deployed to Google Cloud Run. The database will be a managed PostgreSQL instance on Neon. The frontend static assets will be served via a CDN (e.g., Cloudflare Pages, Vercel, or Firebase Hosting).
+*   **Production**: The Backend Docker image will be deployed to Google Cloud Run. The database will be a managed PostgreSQL instance on Neon. The frontend static assets will be served via a CDN (e.g., Cloudflare Pages, Vercel, or Firebase Hosting). See [`docs/TERRAFORM_SETUP.md`](../docs/TERRAFORM_SETUP.md) for IaC details.
+
+---
+
+## 🔗 See Also
+
+- [Low-Level Design](low-level-design.md) — Design patterns, DB schema, API spec
+- [Security Checklist](security-checklist.md) — OWASP ASVS deployment hardening
+- [TODO.md](../TODO.md) — Phase-by-phase development roadmap
+- [PROJECT_STATE.md](../PROJECT_STATE.md) — Current project state and tech stack
+- [User Guide](../docs/USER_GUIDE.md) — End-user feature overview
+- [Agentic AI Setup](../docs/AGENTIC_AI_SETUP.md) — Multi-agent AI implementation guide
+- [LaunchDarkly Guide](../docs/launchdarkly-integration-guide.md) — Feature flag management

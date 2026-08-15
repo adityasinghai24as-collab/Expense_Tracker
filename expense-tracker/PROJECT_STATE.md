@@ -133,14 +133,10 @@ python main.py
 
 ## 🗄️ Database Schema
 
-### Current Models (Placeholders)
+### Current Models
 
-```
-expense-tracker/
-└── backend/
-    └── app/
-        └── models.py
-```
+Defined in [`backend/app/models.py`](backend/app/models.py) using SQLAlchemy declarative base from [`backend/app/database.py`](backend/app/database.py).
+Validation schemas in [`backend/app/schemas.py`](backend/app/schemas.py).
 
 #### Users Table
 ```sql
@@ -151,9 +147,14 @@ CREATE TABLE users (
     full_name VARCHAR,
     hashed_password VARCHAR NOT NULL,
     is_active BOOLEAN DEFAULT true,
-    features_enabled JSON,
+    is_verified BOOLEAN DEFAULT false,
+    otp_code VARCHAR,
+    otp_expires_at TIMESTAMP,
+    role VARCHAR NOT NULL DEFAULT 'free',
     refresh_token VARCHAR,
     token_expires_at TIMESTAMP,
+    failed_login_attempts INT DEFAULT 0,
+    locked_until TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 )
@@ -165,22 +166,46 @@ CREATE TABLE users (
 - `username`: Unique username (indexed)
 - `full_name`: User's full name (optional)
 - `is_active`: Account status
-- `features_enabled`: JSON object for feature flags (e.g., {"ai_receipt_scan": true})
-- `hashed_password`: Bcrypt-hashed password (never store plaintext)
+- `is_verified`: Whether the user has verified their email via OTP
+- `otp_code`, `otp_expires_at`: One-time password for email verification
+- `role`: RBAC subscription tier (`free`, `pro`, `enterprise`, `admin`). See [`docs/RBAC.md`](docs/RBAC.md)
+- `features_enabled`: Computed `@property` (not a DB column) — derives feature access from `role`. See [`backend/app/models.py`](backend/app/models.py)
+- `hashed_password`: Bcrypt-hashed password (never store plaintext). See [`backend/app/auth.py`](backend/app/auth.py)
 - `refresh_token`: Current valid refresh token hash (nullable — null means logged out)
 - `token_expires_at`: When the refresh token expires
+- `failed_login_attempts`, `locked_until`: Brute-force protection (exponential backoff)
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
-- **Relationship**: One-to-Many with Expenses (cascade delete)
+- **Relationships**: One-to-Many with Expenses and Categories (cascade delete)
+
+#### Categories Table
+```sql
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    color VARCHAR,
+    icon VARCHAR,
+    user_id INT FOREIGN KEY REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+)
+```
+
+**Fields**:
+- `id`: Primary key
+- `name`: Category name (indexed)
+- `color`, `icon`: Visual display properties (optional)
+- `user_id`: Foreign key to users (nullable — null means a global/default category)
+- **Relationships**: Many-to-One with Users, One-to-Many with Expenses
 
 #### Expenses Table
 ```sql
 CREATE TABLE expenses (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
+    category_id INT FOREIGN KEY REFERENCES categories(id),
     amount FLOAT NOT NULL,
     description TEXT,
-    category VARCHAR,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 )
@@ -189,21 +214,21 @@ CREATE TABLE expenses (
 **Fields**:
 - `id`: Primary key
 - `user_id`: Foreign key to users table
+- `category_id`: Foreign key to categories table (optional)
 - `amount`: Expense amount (required)
 - `description`: Expense description (optional)
-- `category`: Expense category (optional)
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
-- **Relationship**: Many-to-One with Users
+- **Relationship**: Many-to-One with Users, Many-to-One with Categories
 
 ### ORM Classes Location
-- **File**: `backend/app/models.py`
+- **File**: [`backend/app/models.py`](backend/app/models.py)
 - **Base Class**: `database.Base` (SQLAlchemy declarative base)
 - **Type**: Async-compatible SQLAlchemy ORM models
 
 ### Validation Schemas Location
-- **File**: `backend/app/schemas.py`
-- **Schemas**: UserCreate, UserResponse, ExpenseCreate, ExpenseResponse, ExpenseUpdate
+- **File**: [`backend/app/schemas.py`](backend/app/schemas.py)
+- **Schemas**: UserCreate, UserResponse, UserLogin, UserUpdate, ExpenseCreate, ExpenseResponse, ExpenseUpdate, CategoryCreate, CategoryResponse, TokenResponse, OTPVerifyRequest
 - **Type**: Pydantic models for request/response validation
 
 ---
@@ -309,9 +334,10 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
    - [ ] Frontend: Install client SDK, wrap app in provider, hydrate context on login.
    - [ ] Testing: Setup `TestData` mock source for offline development.
 
-#### 2. **Implement Enterprise Feature Expansion** (High Priority)
+#### 2. **Implement Enterprise Feature Expansion** (High Priority - SDE-3 Focus)
+   - [ ] **Multi-Currency Support**: Live FX API integration, Redis caching, and cron jobs for daily rates.
    - [ ] Build `Recurring Expenses` system via background workers.
-   - [ ] Build `Advanced Analytics` aggregation endpoints.
+   - [ ] Build `Advanced Analytics` with async PDF export via Celery/Redis queue.
    - [ ] Implement `Budgets & Alerts` logic.
 
 #### 2. **Build Agentic AI Architecture** (High Priority)
@@ -344,10 +370,11 @@ postgresql+asyncpg://postgres:postgres@localhost:5432/expense_tracker
 
 ### ⚠️ Known Limitations / Technical Debt
 
-- Database models are placeholders (User, Expense) - need expansion
-- No authentication system implemented (Phase 3 — Tasks 10-16)
-- Persistent login requires HttpOnly cookie support (CORS must allow credentials)
-- No error handling middleware in FastAPI
+- CORS currently set to `allow_origins=["*"]` — must be restricted before production (with `allow_credentials=True` for HttpOnly cookies)
+- Feature flags module ([`backend/app/feature_flags.py`](backend/app/feature_flags.py)) is deprecated pending LaunchDarkly migration (see [`docs/launchdarkly-integration-guide.md`](docs/launchdarkly-integration-guide.md))
+- Rate limiter ([`backend/app/rate_limiter.py`](backend/app/rate_limiter.py)) is implemented but not yet wired into routes globally
+- `GET /admin/feature-flags` endpoint not yet implemented
+- Database credentials are hardcoded dev defaults (`admin/supersecret`) — must use secrets manager for production
 
 ---
 
@@ -537,29 +564,45 @@ docker compose down
 
 | File | Purpose |
 |------|---------|
-| `PROJECT_STATE.md` | This file — persistent memory |
-| `README.md` | Main project README |
-| `Jenkinsfile` | CI/CD Pipeline (multi-environment) |
-| `sonar-project.properties` | SonarQube code quality config |
-| `architecture-study/high-level-design.md` | System architecture and requirements |
-| `architecture-study/security-checklist.md` | **OWASP ASVS / CIS / NIST security deployment checklist** |
-| `docs/TERRAFORM_SETUP.md` | Terraform infrastructure guide |
-| `docs/JENKINS_SETUP.md` | Jenkins CI/CD setup guide |
-| `docs/DEPLOYMENT_CHECKLIST.md` | Per-environment deployment checklist & rollback |
-| `docs/DOCKER_SETUP.md` | Full Docker guide |
-| `docs/DOCKER_QUICK_REF.md` | Docker commands |
-| `docs/DOCKER_ARCHITECTURE.txt` | Architecture overview |
-| `docs/POSTGRES_SETUP.md` | PostgreSQL setup |
-| `docs/DB_INTEGRATION.md` | Database integration |
-| `docs/QUICK_REFERENCE.md` | General quick reference |
-| `docs/AGENTIC_AI_SETUP.md` | Setup guide for the Agentic AI implementation |
-| `docs/launchdarkly-integration-guide.md` | **[NEW]** Setup guide for LaunchDarkly SDK integration |
-| `docs/RBAC.md` | **[NEW]** Guide to Role-Based Access Control and subscription tiers |
+| **Root** | |
+| [`PROJECT_STATE.md`](PROJECT_STATE.md) | This file — persistent memory and source of truth |
+| [`TODO.md`](TODO.md) | Phase-by-phase development roadmap with task checklists |
+| [`Jenkinsfile`](Jenkinsfile) | CI/CD Pipeline definition (multi-environment) |
+| [`sonar-project.properties`](sonar-project.properties) | SonarQube code quality config |
+| [`docker-compose.yml`](docker-compose.yml) | Multi-service Docker orchestration |
+| **Architecture Study** | |
+| [`architecture-study/high-level-design.md`](architecture-study/high-level-design.md) | System architecture, requirements, and deployment overview |
+| [`architecture-study/low-level-design.md`](architecture-study/low-level-design.md) | Design patterns, DB schema, API spec, component architecture |
+| [`architecture-study/security-checklist.md`](architecture-study/security-checklist.md) | OWASP ASVS / CIS / NIST security deployment checklist |
+| **Guides (docs/)** | |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | End-user feature overview and application flow |
+| [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) | Pytest unit tests and Locust load testing guide |
+| [`docs/OBSERVABILITY_GUIDE.md`](docs/OBSERVABILITY_GUIDE.md) | Grafana + Loki + Promtail logging stack guide |
+| [`docs/AGENTIC_AI_SETUP.md`](docs/AGENTIC_AI_SETUP.md) | LangGraph multi-agent AI setup and implementation |
+| [`docs/RBAC.md`](docs/RBAC.md) | Role-Based Access Control and subscription tiers |
+| [`docs/launchdarkly-integration-guide.md`](docs/launchdarkly-integration-guide.md) | LaunchDarkly SDK integration for dynamic feature flags |
+| [`docs/FEATURE_FLAGS_AND_RBAC.md`](docs/FEATURE_FLAGS_AND_RBAC.md) | ⚠️ DEPRECATED — redirects to LaunchDarkly guide |
+| **DevOps Guides (docs/)** | |
+| [`docs/TERRAFORM_SETUP.md`](docs/TERRAFORM_SETUP.md) | Terraform IaC guide for multi-environment deployment |
+| [`docs/JENKINS_SETUP.md`](docs/JENKINS_SETUP.md) | Jenkins CI/CD pipeline setup guide |
+| [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) | Per-environment deployment checklist & rollback |
+| **Agent Config** | |
+| [`.agents/CONTEXT.md`](.agents/CONTEXT.md) | AI agent instructions and project rules |
 
 ---
 
 ## 🎓 Last Updated
 
-**Current Iteration**: Phase 11 (Enterprise & Agentic AI Expansion).
-**Status**: Core application (Auth, CRUD, UI, Docker, CI/CD) is fully built and deployed. We are now expanding the application into an enterprise-grade Autonomous Financial Advisor using LangChain, LangGraph, and RAG.
-**Next Session**: Begin executing tasks in Phase 11 of `TODO.md` (Starting with Task 48: Recurring Expenses, or Task 57: Autonomous Agent).
+**Current Iteration**: Phase 11 (Enterprise & Agentic AI Expansion) + Phase 12 (LaunchDarkly).
+**Status**: Core application (Auth, CRUD, UI, Docker, Observability) is fully built. We are now expanding into enterprise features and migrating feature flags to LaunchDarkly.
+**Next Session**: Begin LaunchDarkly SDK integration (Phase 12, Tasks 62-65) and/or enterprise features in Phase 11 of [`TODO.md`](TODO.md).
+
+---
+
+## 🔗 See Also
+
+- [`TODO.md`](TODO.md) — Full development roadmap
+- [`architecture-study/high-level-design.md`](architecture-study/high-level-design.md) — System architecture
+- [`architecture-study/low-level-design.md`](architecture-study/low-level-design.md) — Design patterns and API spec
+- [`architecture-study/security-checklist.md`](architecture-study/security-checklist.md) — Security hardening guide
+- [`.agents/CONTEXT.md`](.agents/CONTEXT.md) — AI agent rules and context

@@ -139,3 +139,14 @@ To run the AI pipeline locally:
    }
    ```
 4. Verify the backend console logs to watch the LangGraph state machine transition from Supervisor -> Analyst -> Final Answer.
+
+---
+
+## 🔗 See Also
+
+- [High-Level Design](../architecture-study/high-level-design.md) — System architecture (§ AI-Powered Features)
+- [TODO.md](../TODO.md) — Phase 11 (Tasks 57-61) for AI implementation tasks
+- [RBAC](RBAC.md) — Subscription tier gating for AI features (`enterprise` tier required)
+- [LaunchDarkly Guide](launchdarkly-integration-guide.md) — Dynamic feature flag management for AI kill switches
+- [User Guide](USER_GUIDE.md) — User-facing AI feature descriptions
+- **Key code files**: [`backend/app/database.py`](../backend/app/database.py), [`backend/app/models.py`](../backend/app/models.py), [`backend/main.py`](../backend/main.py)

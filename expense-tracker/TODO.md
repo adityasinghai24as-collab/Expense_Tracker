@@ -16,6 +16,19 @@
 
 ---
 
+## 📚 Related Documentation
+
+| Category | Documents |
+|---|---|
+| **Architecture** | [High-Level Design](architecture-study/high-level-design.md) · [Low-Level Design](architecture-study/low-level-design.md) · [Security Checklist](architecture-study/security-checklist.md) |
+| **Project State** | [PROJECT_STATE.md](PROJECT_STATE.md) · [.agents/CONTEXT.md](.agents/CONTEXT.md) |
+| **User-Facing** | [User Guide](docs/USER_GUIDE.md) |
+| **DevOps** | [Terraform Setup](docs/TERRAFORM_SETUP.md) · [Jenkins Setup](docs/JENKINS_SETUP.md) · [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) |
+| **Features** | [RBAC](docs/RBAC.md) · [LaunchDarkly Guide](docs/launchdarkly-integration-guide.md) · [Agentic AI Setup](docs/AGENTIC_AI_SETUP.md) |
+| **Quality** | [Testing Guide](docs/TESTING_GUIDE.md) · [Observability Guide](docs/OBSERVABILITY_GUIDE.md) |
+
+---
+
 ## Phase 1: Backend — Get the API Server Running Locally
 
 > **Objective**: Start the FastAPI backend on your machine and confirm the health endpoint responds.
@@ -57,7 +70,7 @@
 - [x] Read through `app/models.py` — understand how SQLAlchemy ORM models map to database tables
 - [x] Read through `app/database.py` — this is where most of your upcoming work will happen
 
-> **🧠 Architect's Note**: Notice how `main.py` imports from `app.database` but never touches raw SQL. This is the *Dependency Inversion Principle* in action — your API layer depends on abstractions (`get_db`), not concrete database details. This separation is what makes the backend testable, swappable, and scalable.
+> **🧠 Architect's Note**: Notice how [`main.py`](backend/main.py) imports from `app.database` but never touches raw SQL. This is the *Dependency Inversion Principle* in action — your API layer depends on abstractions (`get_db`), not concrete database details. This separation is what makes the backend testable, swappable, and scalable.
 
 ### ✅ Phase 1 Checkpoint
 - [x] `http://localhost:8000/health` returns `{"status": "ok", ...}`
@@ -101,7 +114,7 @@
 
 ### 2.3 Implement the Database Connection (Code Tasks)
 
-Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
+Open [`backend/app/database.py`](backend/app/database.py). You will complete **Tasks 6-11** in order.
 
 #### Task 6 — Database Configuration (URL Construction)
 - [x] Read `DATABASE_URL` from env vars. If it exists, use it directly.
@@ -173,7 +186,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 ### 3.2 Add Password Field to User Model
 
 #### Task 14 — Update User Model for Auth
-- [x] Open `backend/app/models.py`
+- [x] Open [`backend/app/models.py`](backend/app/models.py)
 - [x] Add `hashed_password` column (String, nullable=False) to the User model
 - [x] Add `refresh_token` column (String, nullable=True) — stores the current valid refresh token
 - [x] Add `token_expires_at` column (DateTime, nullable=True) — when the refresh token expires
@@ -183,7 +196,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 ### 3.3 Create Auth Schemas
 
 #### Task 15 — Auth Request/Response Schemas
-- [x] Open `backend/app/schemas.py`
+- [x] Open [`backend/app/schemas.py`](backend/app/schemas.py)
 - [x] Add `UserLogin` schema (username or email, password)
 - [x] Add `TokenResponse` schema (access_token, refresh_token, token_type)
 - [x] Add `TokenRefreshRequest` schema (refresh_token)
@@ -192,7 +205,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 ### 3.4 Implement the Auth Module
 
 #### Task 16 — Create `backend/app/auth.py`
-- [x] Create a new file `backend/app/auth.py`
+- [x] Create a new file [`backend/app/auth.py`](backend/app/auth.py)
 - [x] Implement `hash_password(password: str) -> str` using passlib/bcrypt
 - [x] Implement `verify_password(plain: str, hashed: str) -> bool`
 - [x] Implement `create_access_token(data: dict) -> str` — short-lived JWT (15-30 min)
@@ -202,7 +215,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [x] Use bcrypt with cost factor ≥ 12 (OWASP recommendation; Argon2id preferred if passlib supports it)
 - [x] Enforce strong password policy: min 12 chars, check against HaveIBeenPwned Pwned Passwords API (**not** arbitrary complexity rules like "must include uppercase + symbol")
 
-> **🛡️ Security Ref**: See `security-checklist.md` Category 1 (Authentication & Authorization) for the full requirements.
+> **🛡️ Security Ref**: See [`security-checklist.md`](architecture-study/security-checklist.md) Category 1 (Authentication & Authorization) for the full requirements.
 
 > **🧠 Architect's Note**: Access tokens are short-lived (15 min) and sent with every API request. Refresh tokens are long-lived (7+ days) and stored in an HttpOnly cookie — this is what makes login "persistent". The browser automatically sends the cookie, so the user never has to re-enter credentials unless the refresh token expires or is revoked.
 
@@ -227,7 +240,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 ### 3.5 Frontend Persistent Login
 
 #### Task 19 — Auth Context and Token Management
-- [x] Create `frontend/src/context/AuthContext.jsx`
+- [x] Create [`frontend/src/context/AuthContext.jsx`](frontend/src/context/AuthContext.jsx)
 - [x] Store access token in memory (React state) — NOT in localStorage (XSS risk)
 - [x] On app load, call `POST /api/auth/refresh` to get a new access token from the HttpOnly cookie
   - If successful → user is "still logged in" (persistent login)
@@ -238,8 +251,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
   - On 401 response, automatically calls `/auth/refresh` and retries the request
 
 #### Task 20 — Login and Register Pages
-- [x] Create `frontend/src/pages/Login.jsx` — username or email + password form
-- [x] Create `frontend/src/pages/Register.jsx` — email + password + username form, plus OTP verification step
+- [x] Create [`frontend/src/pages/Login.jsx`](frontend/src/pages/Login.jsx) — username or email + password form
+- [x] Create [`frontend/src/pages/Register.jsx`](frontend/src/pages/Register.jsx) — email + password + username form, plus OTP verification step
 - [x] Add routes for `/login` and `/register`
 - [x] Redirect to dashboard after successful login
 - [x] Add a `ProtectedRoute` wrapper component that redirects to `/login` if not authenticated
@@ -333,17 +346,17 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 
 ### 5.2 Implement the Backend Health Check
 #### Task 29 — Implement the Backend Health Check
-- [ ] Open `frontend/src/App.jsx`
+- [ ] Open [`frontend/src/App.jsx`](frontend/src/App.jsx)
 - [ ] Complete **Task 29**: implement the `fetch('/api/health')` call
 - [ ] Handle the JSON response and update `isConnected` / `setError` state
 - [ ] Uncomment the `setInterval` polling for live connection status
 - [ ] Verify: the status indicator should turn **green** when the backend is running
 
-> **🧠 Architect's Note**: Look at `vite.config.js` — the `/api` proxy rewrites `/api/health` to `http://localhost:8000/health`. This means your frontend code never hardcodes the backend URL. In production, you'd replace this proxy with a real reverse proxy (like Nginx or Cloudflare) or use environment-based `VITE_API_URL` variables.
+> **🧠 Architect's Note**: Look at [`vite.config.js`](frontend/vite.config.js) — the `/api` proxy rewrites `/api/health` to `http://localhost:8000/health`. This means your frontend code never hardcodes the backend URL. In production, you'd replace this proxy with a real reverse proxy (like Nginx or Cloudflare) or use environment-based `VITE_API_URL` variables.
 
 ### 5.3 Setup Feature Flags Context
 #### Task 30 — Setup Feature Flags Context
-- [x] Create `frontend/src/context/FeatureFlagContext.jsx` to parse and provide the user's `features_enabled` globally.
+- [x] Create [`frontend/src/context/FeatureFlagContext.jsx`](frontend/src/context/FeatureFlagContext.jsx) to parse and provide the user's `features_enabled` globally.
 - [x] Implement a `useFeatureFlag` hook to conditionally render UI elements (like AI buttons).
 
 ### 5.4 Build the Core Pages
@@ -361,7 +374,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 
 ### 5.6 Create a Reusable API Service Layer
 #### Task 33 — Create a Reusable API Service Layer
-- [x] Create `frontend/src/services/api.js`
+- [x] Create [`frontend/src/services/api.js`](frontend/src/services/api.js)
 - [x] Centralize all `fetch` calls (e.g., `getExpenses()`, `createExpense(data)`, `deleteExpense(id)`)
 - [x] Handle errors consistently (toast notifications, error boundaries)
 
@@ -406,6 +419,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 
 ### 7.1 Multi-Environment Deployment via Terraform
 #### Task 36 — Terraform Deployment
+
+> See [`docs/TERRAFORM_SETUP.md`](docs/TERRAFORM_SETUP.md) for step-by-step instructions.
 - [x] Set up Infrastructure as Code (IaC) in `infrastructure/`
 - [x] Create per-environment variable files (`environments/dev.tfvars`, `staging.tfvars`, `prod.tfvars`)
 - [x] Configure GCS remote backend with per-environment state isolation
@@ -418,6 +433,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 
 ### 7.2 Feature Flags
 #### Task 37 — Backend Feature Flags
+
+> See [`docs/launchdarkly-integration-guide.md`](docs/launchdarkly-integration-guide.md) for the LaunchDarkly migration plan and [`docs/RBAC.md`](docs/RBAC.md) for subscription tier details.
 - [x] Create `backend/app/feature_flags.py` module
 - [x] Define per-environment flag defaults in `environments/*.tfvars`
 - [x] Inject `FEATURE_FLAGS` JSON env var into Cloud Run via Terraform
@@ -443,7 +460,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Enforce TLS between app and DB (Neon enforces SSL by default)
 - [ ] Ensure DB is not directly reachable from the public internet
 
-> **🛡️ Security Ref**: See `security-checklist.md` Category 5 (Transport & Infrastructure Security) and Category 7 (Secrets & Config Management).
+> **🛡️ Security Ref**: See [`security-checklist.md`](architecture-study/security-checklist.md) Category 5 (Transport & Infrastructure Security) and Category 7 (Secrets & Config Management).
 
 ### ✅ Phase 7 Checkpoint
 - [ ] Backend API is reachable on a public URL and connected to the production database
@@ -461,6 +478,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [x] Install test dependencies: `pip install pytest pytest-asyncio httpx`
 - [x] Create `backend/tests/` directory with `__init__.py` and `conftest.py`
 - [ ] Write a test fixture that provides a test database session (use an in-memory SQLite or a separate test PostgreSQL DB)
+
+> See [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) for testing setup, architecture, and conventions.
 - [ ] Write tests for:
   - [ ] `GET /health` returns 200
   - [ ] `POST /users` creates a user and returns 201
@@ -502,7 +521,9 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 
 ### 9.1 Create the CI Pipeline
 #### Task 42 — CI Pipeline
-- [ ] Create `Jenkinsfile` with declarative pipeline
+- [ ] Create [`Jenkinsfile`](Jenkinsfile) with declarative pipeline
+
+> See [`docs/JENKINS_SETUP.md`](docs/JENKINS_SETUP.md) for complete Jenkins setup instructions.
 - [ ] Define stages:
   - **Code Quality**: `ruff` (Python) + `eslint` (JS) + SonarQube
   - **Security Scans**: Trivy vulnerability scanner
@@ -510,7 +531,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Pipeline triggers on pushes to `develop`, `staging`, and `main`
 - [ ] Security scans must pass as a merge gate
 
-> **🛡️ Security Ref**: See `security-checklist.md` Category 9 (Dependency & Infra Hygiene) and Category 10 (Additional Defenses).
+> **🛡️ Security Ref**: See [`security-checklist.md`](architecture-study/security-checklist.md) Category 9 (Dependency & Infra Hygiene) and Category 10 (Additional Defenses).
 
 ### 9.2 Create the CD Pipeline (Multi-Environment)
 #### Task 43 — CD Pipeline
@@ -519,7 +540,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Add **Post-Deploy Smoke Test** stage for health check verification
 - [ ] Auto-detect environment from branch (`develop`→dev, `staging`→staging, `main`→prod)
 - [ ] Add **manual approval gate** before production deployments
-- [ ] Create `docs/DEPLOYMENT_CHECKLIST.md` with pre/post-deploy steps and rollback procedures
+- [ ] Create [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) with pre/post-deploy steps and rollback procedures
 
 ### 9.3 Branch Protection
 #### Task 44 — Branch Protection
@@ -544,6 +565,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [x] Integrate a monitoring/error tracking tool (e.g., Sentry) on both backend and frontend.
 - [x] Local log aggregation and querying using Grafana + Loki + Promtail.
 
+> See [`docs/OBSERVABILITY_GUIDE.md`](docs/OBSERVABILITY_GUIDE.md) for how to use the PLG logging stack.
+
 ### 10.2 Security & Rate Limiting
 #### Task 46 — Rate Limiting
 - [ ] Implement Rate Limiting on the backend API (e.g., using `slowapi` or Redis).
@@ -565,7 +588,7 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Schedule quarterly access reviews (remove stale accounts, unused API keys)
 - [ ] Run `pip-audit` and `npm audit` on a recurring schedule (not just at build time)
 
-> **🛡️ Security Ref**: See `security-checklist.md` Category 8 (Logging, Monitoring & Response) and Category 9 (Dependency & Infra Hygiene).
+> **🛡️ Security Ref**: See [`security-checklist.md`](architecture-study/security-checklist.md) Category 8 (Logging, Monitoring & Response) and Category 9 (Dependency & Infra Hygiene).
 
 ### ✅ Phase 10 Checkpoint
 - [ ] You can view logs in a structured format.
@@ -579,6 +602,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 ## Phase 11: Feature Expansion (Enterprise Features)
 
 > **Objective**: Implement 9 advanced features to transform the application into an enterprise-grade personal finance tool.
+>
+> See also: [`architecture-study/high-level-design.md`](architecture-study/high-level-design.md) § Functional Requirements and [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) for the user-facing feature overview.
 
 ### 11.1 Top Priority Features
 #### Task 48 — Recurring Expenses (Subscriptions)
@@ -587,10 +612,10 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Set up a background worker (e.g., Celery or APScheduler) to automatically generate expense records on the scheduled date.
 - [ ] Create UI to manage active subscriptions.
 
-#### Task 49 — Advanced Analytics & Data Export
-- [ ] Backend: Build complex aggregation endpoints (Month-over-Month comparisons, heatmaps by day of week).
-- [ ] Backend: Implement CSV and PDF export generation for user data.
-- [ ] Frontend: Integrate charting libraries (e.g., Recharts) for rich visualizations on the dashboard.
+#### Task 49 — Advanced Analytics & Asynchronous Data Export (SDE-3 Level)
+- [ ] Backend: Build complex aggregation endpoints (Month-over-Month comparisons, heatmaps).
+- [ ] Backend: Implement CSV and massive PDF tax report generation via a Background Worker Queue (Celery/Redis) to avoid blocking the API.
+- [ ] Frontend: Integrate charting libraries (e.g., Recharts) and polling/WebSocket for report completion notifications.
 
 #### Task 50 — Budgets & Alerts
 - [ ] Create `Budget` model allowing users to set monthly limits per category.
@@ -610,6 +635,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Display insights prominently on the user dashboard.
 
 #### Task 57 — Autonomous Financial Advisor (Multi-Agent AI)
+
+> See [`docs/AGENTIC_AI_SETUP.md`](docs/AGENTIC_AI_SETUP.md) for the full implementation guide.
 - [ ] Install LangChain, LangGraph, and Core LLM dependencies.
 - [ ] Define FastAPI backend Tools (using LangChain `@tool`) to safely query/mutate user data (e.g., `get_spending`, `create_budget`).
 - [ ] Create a LangGraph State machine with a Supervisor Agent, Data Analyst Agent, and Action Executor Agent.
@@ -642,9 +669,10 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 - [ ] Update DB schema to allow one parent `Expense` to have multiple child `SubExpense` records linked to different categories.
 - [ ] Update frontend forms to support itemized entry (e.g., $70 Groceries, $30 Electronics from a single $100 receipt).
 
-#### Task 54 — Multi-Currency Support & Live FX
-- [ ] Update `Expense` model to track native currency and converted base currency (USD).
-- [ ] Integrate an Exchange Rate API (e.g., OpenExchangeRates) to convert values at the time of transaction.
+#### Task 54 — Multi-Currency Support & Live FX (SDE-3 Level)
+- [ ] Update `Expense` model to track native currency, base currency (USD), and the applied exchange rate.
+- [ ] Integrate an Exchange Rate API (e.g., OpenExchangeRates) to convert values.
+- [ ] Setup a cron job (Celery/APScheduler) to fetch daily rates and cache them in Redis to avoid rate limits and latency.
 - [ ] Frontend dropdown for currency selection.
 
 #### Task 55 — Tags, Attachments & Geolocation
@@ -661,6 +689,8 @@ Open `backend/app/database.py`. You will complete **Tasks 6-11** in order.
 ---
 
 ## Phase 12: LaunchDarkly Feature Management
+
+> See [`docs/launchdarkly-integration-guide.md`](docs/launchdarkly-integration-guide.md) for the full SDK setup guide and [`docs/RBAC.md`](docs/RBAC.md) for the subscription tier model.
 
 ### 12.1 Backend Integration (FastAPI)
 #### Task 62 — Backend SDK Initialization & Singleton

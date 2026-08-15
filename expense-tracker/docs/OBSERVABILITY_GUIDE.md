@@ -83,3 +83,13 @@ While the "Explore" tab is great for ad-hoc debugging, you can create a permanen
     *   Check Promtail logs for connection errors: `docker logs expense-tracker-promtail`
 *   **Grafana won't load?**
     *   Verify Grafana is running and port `3000` is not blocked by another service.
+
+---
+
+## 🔗 See Also
+
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) — Post-deploy monitoring steps
+- [Jenkins Setup Guide](JENKINS_SETUP.md) — CI/CD pipeline with log verification
+- [Security Checklist](../architecture-study/security-checklist.md) — Logging & Monitoring requirements (§ Category 8)
+- [TODO.md](../TODO.md) — Phase 10 (Observability tasks)
+- **Key code/config files**: [`docker-compose.yml`](../docker-compose.yml) (Loki/Promtail/Grafana services), [`backend/app/logger.py`](../backend/app/logger.py) (structlog setup), [`config/`](../config/) (Loki/Promtail/Grafana configs)

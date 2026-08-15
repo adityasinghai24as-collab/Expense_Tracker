@@ -47,3 +47,12 @@ locust -f load_tests/locustfile.py
 3. Enter the spawn rate (e.g., `50` users per second).
 4. Enter the host (e.g., `http://localhost:8000`).
 5. Click **Start swarming** and watch the real-time statistics and charts!
+
+---
+
+## 🔗 See Also
+
+- [Security Checklist](../architecture-study/security-checklist.md) — Quality Assurance & Performance Testing requirements (§ Category 11)
+- [TODO.md](../TODO.md) — Phase 8 (Testing tasks)
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) — Pre-deploy test verification steps
+- **Key code files**: [`backend/tests/conftest.py`](../backend/tests/conftest.py), [`backend/tests/`](../backend/tests/), [`backend/load_tests/`](../backend/load_tests/), [`backend/app/database.py`](../backend/app/database.py) (async engine config)

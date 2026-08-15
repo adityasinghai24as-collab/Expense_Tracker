@@ -7,3 +7,11 @@
 
 Please refer to the new implementation guide for setting up and managing access control:
 👉 [LaunchDarkly Integration Guide](launchdarkly-integration-guide.md)
+
+---
+
+## 🔗 See Also
+
+- [LaunchDarkly Integration Guide](launchdarkly-integration-guide.md) — Replacement implementation
+- [RBAC](RBAC.md) — Internal subscription tier access control
+- [TODO.md](../TODO.md) — Phase 12 (LaunchDarkly migration tasks)

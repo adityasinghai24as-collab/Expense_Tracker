@@ -477,27 +477,27 @@ Open [`backend/app/database.py`](backend/app/database.py). You will complete **T
 #### Task 39 — Backend Tests
 - [x] Install test dependencies: `pip install pytest pytest-asyncio httpx`
 - [x] Create `backend/tests/` directory with `__init__.py` and `conftest.py`
-- [ ] Write a test fixture that provides a test database session (use an in-memory SQLite or a separate test PostgreSQL DB)
+- [x] Write a test fixture that provides a test database session (use an in-memory SQLite or a separate test PostgreSQL DB)
 
 > See [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) for testing setup, architecture, and conventions.
-- [ ] Write tests for:
-  - [ ] `GET /health` returns 200
-  - [ ] `POST /users` creates a user and returns 201
-  - [ ] `POST /expenses` creates an expense linked to a user
-  - [ ] `GET /expenses` returns the correct list
-  - [ ] `DELETE /users/{id}` cascades and deletes related expenses
-  - [ ] Invalid data returns 422
+- [x] Write tests for:
+  - [x] `GET /health` returns 200
+  - [x] `POST /users` creates a user and returns 201
+  - [x] `POST /expenses` creates an expense linked to a user
+  - [x] `GET /expenses` returns the correct list
+  - [x] `DELETE /users/{id}` cascades and deletes related expenses
+  - [x] Invalid data returns 422
 
 > **🧠 Architect's Note**: Test against the *API contract* (HTTP status codes, response shapes), not internal implementation. This lets you refactor internals freely without rewriting tests. Use `httpx.AsyncClient` with FastAPI's `TestClient` for async endpoint testing.
 
 ### 8.2 Frontend Tests (Vitest)
 #### Task 40 — Frontend Tests
-- [ ] Install test dependencies: `npm install -D vitest @testing-library/react @testing-library/jest-dom jsdom`
-- [ ] Configure Vitest in `vite.config.js`
-- [ ] Write tests for:
-  - [ ] API service functions mock `fetch` and return expected data
-  - [ ] Components render correctly with given props
-  - [ ] Form submission calls the correct API function
+- [x] Install test dependencies: `npm install -D vitest @testing-library/react @testing-library/jest-dom jsdom`
+- [x] Configure Vitest in `vite.config.js`
+- [x] Write tests for:
+  - [x] API service functions mock `fetch` and return expected data
+  - [x] Components render correctly with given props
+  - [x] Form submission calls the correct API function
 
 ### 8.3 Load Testing (Locust / k6)
 #### Task 41 — Load Testing
@@ -508,8 +508,8 @@ Open [`backend/app/database.py`](backend/app/database.py). You will complete **T
 - [ ] Identify any database bottlenecks or slow queries.
 
 ### ✅ Phase 8 Checkpoint
-- [ ] `pytest` passes all backend tests
-- [ ] `npx vitest run` passes all frontend tests
+- [x] `pytest` passes all backend tests
+- [x] `npx vitest run` passes all frontend tests
 - [ ] Load tests verify stable performance under simulated traffic of 500-1000+ users
 - [ ] You understand the difference between unit tests, integration tests, and end-to-end tests
 
@@ -518,42 +518,88 @@ Open [`backend/app/database.py`](backend/app/database.py). You will complete **T
 ## Phase 9: CI/CD — Automate Everything
 
 > **Objective**: Set up a Jenkins CI/CD pipeline that tests, builds, and deploys on every push.
+> See [`docs/JENKINS_SETUP.md`](docs/JENKINS_SETUP.md) for the full Jenkins + SonarQube server setup.
+> See [`sonar-project.properties`](sonar-project.properties) for the SonarQube project config.
 
 ### 9.1 Create the CI Pipeline
-#### Task 42 — CI Pipeline
-- [ ] Create [`Jenkinsfile`](Jenkinsfile) with declarative pipeline
+#### Task 42 — CI Pipeline (Jenkinsfile)
+- [/] Implement [`Jenkinsfile`](Jenkinsfile) with full declarative pipeline (11 stages):
+  - **Stage 1**: Smoke Tests (`pytest -m smoke` — aborts pipeline on failure)
+  - **Stage 2**: SAST & Linting (`ruff`, `bandit`, `pip-audit`, `eslint`, `npm audit`, Gitleaks)
+  - **Stage 3**: Unit Tests (`pytest --cov` + `vitest --coverage`)
+  - **Stage 4**: SonarQube Analysis (`sonar-scanner`)
+  - **Stage 5**: SonarQube Quality Gate (`waitForQualityGate abortPipeline: true`)
+  - **Stage 6**: Build & Push Docker images to Artifact Registry
+  - **Stage 7**: Container Security Scan (`trivy image`)
+  - **Stage 8**: Production Approval Gate (manual, `main` only)
+  - **Stage 9**: Deploy Infrastructure (`terraform apply`)
+  - **Stage 10**: Post-Deploy Smoke Test (curl `/health`, `/health/db`)
+  - **Stage 11**: E2E Tests (`playwright test`, `staging` only)
+- [ ] Configure Jenkins credentials (see `JENKINS_SETUP.md` Step 1).
+- [ ] Create Multibranch Pipeline job in Jenkins pointing to this repo.
+- [ ] Verify pipeline triggers on pushes to `develop`, `staging`, and `main`.
 
-> See [`docs/JENKINS_SETUP.md`](docs/JENKINS_SETUP.md) for complete Jenkins setup instructions.
-- [ ] Define stages:
-  - **Code Quality**: `ruff` (Python) + `eslint` (JS) + SonarQube
-  - **Security Scans**: Trivy vulnerability scanner
-  - **Unit Tests**: `pytest` (backend) + `vitest` (frontend)
-- [ ] Pipeline triggers on pushes to `develop`, `staging`, and `main`
-- [ ] Security scans must pass as a merge gate
+> **Security Ref**: See [`security-checklist.md`](architecture-study/security-checklist.md) § 9 (CI/CD Security).
 
-> **🛡️ Security Ref**: See [`security-checklist.md`](architecture-study/security-checklist.md) Category 9 (Dependency & Infra Hygiene) and Category 10 (Additional Defenses).
+### 9.2 SonarQube Quality Gate Configuration
+#### Task 45 — SonarQube Server & Quality Gate Setup
+- [ ] Start local SonarQube: `docker compose -f docker-compose.jenkins.yml up -d`.
+- [ ] Log in to http://localhost:9000 (admin/admin), change the default password immediately.
+- [ ] Create a new project → **Project Key**: `expense-tracker`.
+- [ ] Generate a **Project Token** (My Account → Security → Generate Token).
+- [ ] Add the token to Jenkins credentials as `sonar-token` (Secret Text).
+- [ ] Configure the SonarQube server in Jenkins (Manage Jenkins → System → SonarQube servers):
+  - **Name**: `SonarQubeServer` (must match `Jenkinsfile` exactly)
+  - **URL**: `http://sonarqube:9000`
+  - **Token**: select the `sonar-token` credential
 
-### 9.2 Create the CD Pipeline (Multi-Environment)
+#### Task 46 — Quality Gate Thresholds
+- [ ] In SonarQube UI, navigate to **Quality Gates → Create** a custom gate named `Expense Tracker Gate`.
+- [ ] Add the following conditions:
+  - **Coverage on new code** ≥ 80%
+  - **Duplicated Lines on new code** ≤ 3%
+  - **Maintainability Rating on new code** = A
+  - **Reliability Rating on new code** = A
+  - **Security Rating on new code** = A
+  - **Security Hotspots Reviewed** = 100%
+- [ ] Assign this gate to the `expense-tracker` project.
+- [ ] Run the pipeline once and verify the Quality Gate stage passes.
+
+#### Task 47 — SonarQube Coverage Integration
+- [ ] Confirm backend Pytest produces `backend/coverage.xml`: `pytest --cov=app --cov-report=xml:coverage.xml`.
+- [ ] Confirm frontend Vitest produces `frontend/coverage/lcov.info`: `npx vitest run --coverage`.
+- [ ] Verify both report paths match [`sonar-project.properties`](sonar-project.properties).
+- [ ] View the SonarQube **Measures → Coverage** dashboard and confirm it reflects test results.
+
+#### Task 48 — Branch Analysis & PR Decoration
+- [ ] Enable **Automatic Analysis** or configure `sonar.branch.name` in the Jenkinsfile per branch.
+- [ ] Install the **GitHub Pull Request Decoration** plugin in SonarQube.
+- [ ] Configure a GitHub token in SonarQube so Quality Gate status appears inline on PRs.
+
+### 9.3 Create the CD Pipeline (Multi-Environment)
 #### Task 43 — CD Pipeline
-- [ ] Add **Build & Push** stage to push Docker image to Artifact Registry
-- [ ] Add **Deploy Infrastructure** stage to run Terraform with `environments/<env>.tfvars`
-- [ ] Add **Post-Deploy Smoke Test** stage for health check verification
-- [ ] Auto-detect environment from branch (`develop`→dev, `staging`→staging, `main`→prod)
-- [ ] Add **manual approval gate** before production deployments
-- [ ] Create [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) with pre/post-deploy steps and rollback procedures
+- [/] Add **Build & Push** stage (Docker images → GCP Artifact Registry).
+- [ ] Add **Deploy Infrastructure** stage (`terraform apply` with env-specific `.tfvars`).
+- [ ] Add **Post-Deploy Smoke Test** stage (curl `/health`, `/health/db`).
+- [/] Auto-detect environment from branch (`develop`→dev, `staging`→staging, `main`→prod).
+- [/] Add **manual approval gate** before production deployments.
+- [x] Created [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md) with pre/post-deploy steps.
 
-### 9.3 Branch Protection
+### 9.4 Branch Protection
 #### Task 44 — Branch Protection
-- [ ] Enable branch protection on `main`
-- [ ] Require CI to pass before merging PRs
-- [ ] Require at least 1 code review before merging
+- [ ] Enable branch protection on `main` and `staging`.
+- [ ] Require CI pipeline (including Quality Gate) to pass before merging PRs.
+- [ ] Require at least 1 code review approval before merging.
 
 ### ✅ Phase 9 Checkpoint
-- [x] Every push triggers automated tests
-- [x] Merging to `main` automatically deploys to production (with approval)
-- [x] Multi-environment deployments are fully automated
+- [ ] Every push triggers the full 11-stage pipeline automatically
+- [ ] SonarQube Quality Gate blocks merges when code quality drops
+- [ ] Coverage gate enforces ≥ 80% on new code
+- [ ] Merging to `main` automatically deploys to production (with approval)
+- [ ] Multi-environment deployments are fully automated via Terraform
 
 ---
+
 
 ## Phase 10: Enterprise Readiness (Advanced)
 
@@ -733,9 +779,118 @@ Open [`backend/app/database.py`](backend/app/database.py). You will complete **T
 
 ---
 
+## Phase 13: Testing Rigor
+
+> **Objective**: Implement a comprehensive, multi-layered testing strategy that provides confidence in every deployment. See [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) for tool references and commands.
+
+### 13.1 Unit Testing (Backend)
+#### Task 67 — Backend Unit Test Coverage
+- [x] Install `pytest-cov`: `pip install pytest-cov`.
+- [x] Write `tests/test_auth.py`: cover register, verify-OTP, login, refresh, logout, brute-force lockout.
+- [x] Write `tests/test_expenses.py`: cover CRUD operations, ownership enforcement (IDOR), pagination.
+- [x] Write `tests/test_categories.py`: cover create, list, delete, duplicate name rejection.
+- [x] Write `tests/test_rbac.py`: confirm `free` users are blocked from `pro`-gated endpoints.
+- [x] Enforce coverage gate: `pytest --cov=app --cov-fail-under=80` in CI.
+
+### 13.2 Unit Testing (Frontend)
+#### Task 68 — Frontend Unit Test Setup
+- [x] Install Vitest and testing library: `npm install -D vitest @testing-library/react @testing-library/user-event jsdom`.
+- [x] Configure `vite.config.js` to add `test: { environment: 'jsdom' }`.
+- [x] Write tests for `Login.jsx` form validation (empty fields, invalid email format).
+- [x] Write tests for `Register.jsx` form validation and password matching.
+- [x] Write tests for `AuthContext.jsx` token refresh logic (mock `api.js`).
+- [x] Write tests for `FeatureFlagContext.jsx` flag evaluation.
+- [x] Add `npx vitest run --coverage` as a CI step.
+
+### 13.3 Integration & Contract Testing
+#### Task 69 — Integration Test Suite
+- [ ] Create `backend/tests/test_integration/` directory.
+- [ ] Write full auth flow integration test: register → verify-OTP → login → refresh → logout.
+- [ ] Write full expense lifecycle test: create → update → delete → confirm 404.
+- [ ] Write cross-user isolation test: confirm User A cannot access User B's expenses.
+
+#### Task 70 — API Contract Testing (Schemathesis)
+- [ ] Install `schemathesis`: `pip install schemathesis`.
+- [ ] Add `schemathesis run http://localhost:8000/openapi.json --checks all` as a CI step.
+- [ ] Document any schema violations found and fix them.
+
+### 13.4 Functional Testing
+#### Task 71 — Functional Test Markers
+- [ ] Add `@pytest.mark.functional` decorator to all business-rule tests.
+- [x] Create a `pytest.ini` marker registration for `smoke`, `functional`, `integration`.
+- [ ] Ensure all rows in the Functional Test Case Matrix in `TESTING_GUIDE.md` have a corresponding test.
+
+### 13.5 Smoke Testing
+#### Task 72 — Smoke Test Suite
+- [x] Create `backend/tests/test_smoke.py` with `@pytest.mark.smoke`.
+- [x] Test `GET /health` returns `200`.
+- [x] Test `GET /health/db` returns `200`.
+- [x] Test a register + login round-trip completes without error.
+- [x] Add `pytest -m smoke` as the **first** step in the Jenkins pipeline (abort on failure).
+
+### 13.6 End-to-End (E2E) Automation
+#### Task 73 — Playwright Setup
+- [ ] Create an `e2e/` directory at the project root.
+- [ ] Install Playwright: `npm install -D @playwright/test && npx playwright install chromium`.
+- [ ] Configure `playwright.config.ts` with baseURL, screenshot on failure, and HTML reporter.
+
+#### Task 74 — E2E User Journey Scripts
+- [ ] Write `e2e/onboarding.spec.ts`: Register → Verify OTP → Land on Dashboard.
+- [ ] Write `e2e/expense-management.spec.ts`: Login → Add → Edit → Delete expense.
+- [ ] Write `e2e/session-persistence.spec.ts`: Login → Close tab → Reopen → Confirm still logged in.
+- [ ] Write `e2e/rbac-ui.spec.ts`: Login as free user → Confirm pro features are hidden.
+- [ ] Add Playwright tests to Jenkins `staging` pipeline stage.
+
+### 13.7 Performance Testing
+#### Task 75 — Load Test Scenarios
+- [ ] Expand `backend/load_tests/locustfile.py` to cover expense CRUD endpoints (not just health).
+- [ ] Add a **stress test** scenario: ramp to 5,000 users over 5 minutes.
+- [ ] Add a **spike test** scenario: 0 → 2,000 users in 10 seconds.
+- [ ] Add a **soak test** scenario: 200 users sustained for 1 hour.
+- [ ] Document pass/fail thresholds: p95 < 200ms, error rate < 1% at 500 users.
+
+### 13.8 Security Testing
+#### Task 76 — SAST & Dependency Scanning
+- [ ] Install and run `bandit -r backend/app/ -ll`; fix any HIGH severity findings.
+- [ ] Install and run `pip-audit -r backend/config/requirements.txt`; update vulnerable packages.
+- [ ] Run `npm audit --audit-level=high` in `frontend/`; fix any HIGH severity findings.
+- [ ] Add Bandit + pip-audit + npm audit as CI steps (fail on HIGH severity).
+
+#### Task 77 — Secret Scanning (Gitleaks)
+- [ ] Add Gitleaks scan as a pre-commit hook.
+- [ ] Add Gitleaks Docker scan to Jenkins pipeline.
+- [ ] Confirm no secrets are committed in the repo history.
+
+#### Task 78 — DAST & Container Scanning
+- [ ] Run OWASP ZAP baseline scan against staging: `docker run owasp/zap2docker-stable zap-baseline.py -t <staging-url>`.
+- [ ] Run Trivy image scan on `expense-tracker-backend:latest`.
+- [ ] Run Trivy image scan on `expense-tracker-frontend:latest`.
+- [ ] Fix any CRITICAL or HIGH CVEs found.
+
+#### Task 79 — Manual Security Test Cases
+- [ ] Execute all manual security test cases from `TESTING_GUIDE.md §8.4`.
+- [ ] Document results in a `docs/SECURITY_TEST_RESULTS.md` file.
+- [ ] Verify brute-force lockout triggers after 5 failed login attempts.
+- [ ] Verify IDOR protection: confirm User A's JWT cannot access User B's expenses.
+
+### 13.9 Chaos Engineering
+#### Task 80 — Chaos Test Runbook
+- [ ] Document a chaos runbook in `docs/CHAOS_RUNBOOK.md`.
+- [ ] Execute DB failure scenario: `docker compose stop db` → confirm `503` response.
+- [ ] Execute Redis failure scenario: `docker compose stop redis` → confirm app continues.
+- [ ] Execute memory limit scenario: set Docker memory to 64MB → confirm container restarts cleanly.
+
+### 13.10 Accessibility Testing
+#### Task 81 — a11y Audit
+- [ ] Install `@axe-core/playwright`: `npm install -D @axe-core/playwright`.
+- [ ] Write `e2e/a11y.spec.ts` that runs axe against Login, Register, Dashboard, and Add Expense pages.
+- [ ] Fix all WCAG 2.1 AA violations (focus order, colour contrast, ARIA labels).
+
+---
+
 ## 🎓 You've Graduated!
 
-If you've completed all 11 phases, you have:
+If you've completed all phases, you have:
 
 1. **Built** a production-grade REST API with async database operations
 2. **Connected** it to a managed PostgreSQL database

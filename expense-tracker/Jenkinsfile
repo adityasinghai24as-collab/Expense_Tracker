@@ -1,12 +1,263 @@
-// TODO: Task 42 & 43 - CI/CD Pipeline
-// Define Jenkins declarative pipeline here
+// Expense Tracker - Jenkins Declarative Pipeline
+// Implements: Smoke -> SAST -> Unit Tests -> SonarQube Quality Gate -> Build -> Deploy -> E2E
+// See: docs/JENKINS_SETUP.md for credential setup and server configuration
+// See: sonar-project.properties for SonarQube project configuration
+
 pipeline {
     agent any
+
+    environment {
+        DEPLOY_ENV = sh(
+            script: '''
+                case "${BRANCH_NAME}" in
+                    main)    echo "prod" ;;
+                    staging) echo "staging" ;;
+                    *)       echo "dev" ;;
+                esac
+            ''',
+            returnStdout: true
+        ).trim()
+        IMAGE_TAG = "${DEPLOY_ENV}-${BUILD_NUMBER}"
+    }
+
+    options {
+        timestamps()
+        timeout(time: 45, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
     stages {
-        stage('Placeholder') {
+
+        // Stage 1: Smoke Tests - fastest fail
+        stage('Smoke Tests') {
             steps {
-                echo 'CI/CD Pipeline to be implemented'
+                echo "Running smoke tests for ${DEPLOY_ENV}..."
+                sh '''
+                    cd backend
+                    source venv/bin/activate || (python -m venv venv && source venv/bin/activate)
+                    pip install -q -r config/requirements.txt
+                    pytest -v -m smoke --tb=short
+                '''
             }
+        }
+
+        // Stage 2: SAST, Linting & Secret Scanning
+        stage('SAST & Linting') {
+            parallel {
+                stage('Python - Ruff + Bandit') {
+                    steps {
+                        sh '''
+                            cd backend
+                            source venv/bin/activate
+                            pip install -q ruff bandit pip-audit
+                            ruff check app/
+                            bandit -r app/ -ll -q
+                            pip-audit -r config/requirements.txt -q
+                        '''
+                    }
+                }
+                stage('JavaScript - ESLint + npm audit') {
+                    steps {
+                        sh '''
+                            cd frontend
+                            npm ci --silent
+                            npx eslint src/ --max-warnings 0
+                            npm audit --audit-level=high
+                        '''
+                    }
+                }
+                stage('Secret Scanning - Gitleaks') {
+                    steps {
+                        sh 'docker run --rm -v $(pwd):/path zricethezav/gitleaks:latest detect --source=/path --no-git -q'
+                    }
+                }
+            }
+        }
+
+        // Stage 3: Unit Tests with Coverage
+        stage('Unit Tests') {
+            parallel {
+                stage('Backend - Pytest') {
+                    steps {
+                        sh '''
+                            cd backend
+                            source venv/bin/activate
+                            pytest -v \
+                                --cov=app \
+                                --cov-report=xml:coverage.xml \
+                                --cov-report=term-missing \
+                                --cov-fail-under=80 \
+                                --tb=short
+                        '''
+                    }
+                    post {
+                        always {
+                            junit allowEmptyResults: true, testResults: 'backend/test-results/*.xml'
+                        }
+                    }
+                }
+                stage('Frontend - Vitest') {
+                    steps {
+                        sh '''
+                            cd frontend
+                            npx vitest run --coverage --reporter=verbose
+                        '''
+                    }
+                }
+            }
+        }
+
+        // Stage 4: SonarQube Static Analysis
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQubeServer') {
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectVersion=${BUILD_NUMBER} \
+                          -Dsonar.python.coverage.reportPaths=backend/coverage.xml \
+                          -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
+                    '''
+                }
+            }
+        }
+
+        // Stage 5: SonarQube Quality Gate - BLOCKS pipeline on failure
+        stage('SonarQube Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        // Stage 6: Build & Push Docker Images (deploy branches only)
+        stage('Build & Push') {
+            when {
+                anyOf { branch 'main'; branch 'staging'; branch 'develop' }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
+                    file(credentialsId: 'gcp-credentials', variable: 'GCP_KEY_FILE')
+                ]) {
+                    sh '''
+                        gcloud auth activate-service-account --key-file=${GCP_KEY_FILE}
+                        gcloud config set project ${GCP_PROJECT_ID}
+                        gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+                        docker build -t us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/expense-tracker/backend:${IMAGE_TAG} ./backend
+                        docker push us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/expense-tracker/backend:${IMAGE_TAG}
+
+                        docker build -t us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/expense-tracker/frontend:${IMAGE_TAG} ./frontend
+                        docker push us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/expense-tracker/frontend:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+
+        // Stage 7: Container Security Scanning (Trivy)
+        stage('Container Security Scan') {
+            when {
+                anyOf { branch 'main'; branch 'staging'; branch 'develop' }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID')]) {
+                    sh '''
+                        trivy image --exit-code 1 --severity HIGH,CRITICAL \
+                            us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/expense-tracker/backend:${IMAGE_TAG}
+                        trivy image --exit-code 1 --severity HIGH,CRITICAL \
+                            us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/expense-tracker/frontend:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+
+        // Stage 8: Manual Approval (production only)
+        stage('Production Approval') {
+            when { branch 'main' }
+            steps {
+                timeout(time: 30, unit: 'MINUTES') {
+                    input(
+                        message: "Deploy to PRODUCTION?",
+                        ok: 'Yes, deploy to production',
+                        submitter: 'admin,lead-developer'
+                    )
+                }
+            }
+        }
+
+        // Stage 9: Deploy Infrastructure (Terraform)
+        stage('Deploy Infrastructure') {
+            when {
+                anyOf { branch 'main'; branch 'staging'; branch 'develop' }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
+                    file(credentialsId: 'gcp-credentials', variable: 'GCP_KEY_FILE'),
+                    string(credentialsId: 'backend-secret-key', variable: 'SECRET_KEY')
+                ]) {
+                    sh '''
+                        cd infrastructure
+                        terraform init -input=false
+                        terraform plan \
+                            -var-file=environments/${DEPLOY_ENV}.tfvars \
+                            -var="image_tag=${IMAGE_TAG}" \
+                            -var="secret_key=${SECRET_KEY}" \
+                            -out=tfplan
+                        terraform apply -auto-approve tfplan
+                        terraform output -json > ../terraform-outputs.json
+                    '''
+                }
+            }
+        }
+
+        // Stage 10: Post-Deploy Smoke Tests
+        stage('Post-Deploy Smoke Test') {
+            when {
+                anyOf { branch 'main'; branch 'staging'; branch 'develop' }
+            }
+            steps {
+                sh '''
+                    BACKEND_URL=$(cat terraform-outputs.json | python3 -c "import sys,json; print(json.load(sys.stdin)['backend_url']['value'])")
+                    curl -f ${BACKEND_URL}/health
+                    curl -f ${BACKEND_URL}/health/db
+                    echo "Post-deploy smoke tests passed for ${DEPLOY_ENV}"
+                '''
+            }
+        }
+
+        // Stage 11: E2E Tests (staging only)
+        stage('E2E Tests') {
+            when { branch 'staging' }
+            steps {
+                sh '''
+                    FRONTEND_URL=$(cat terraform-outputs.json | python3 -c "import sys,json; print(json.load(sys.stdin)['frontend_url']['value'])")
+                    npx playwright test --reporter=html --base-url=${FRONTEND_URL}
+                '''
+            }
+            post {
+                always {
+                    publishHTML(target: [
+                        allowMissing: true,
+                        reportDir: 'playwright-report',
+                        reportFiles: 'index.html',
+                        reportName: 'Playwright E2E Report'
+                    ])
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline succeeded: ${DEPLOY_ENV} (${BRANCH_NAME}#${BUILD_NUMBER})"
+        }
+        failure {
+            echo "Pipeline FAILED: ${DEPLOY_ENV} (${BRANCH_NAME}#${BUILD_NUMBER})"
+        }
+        always {
+            cleanWs()
         }
     }
 }

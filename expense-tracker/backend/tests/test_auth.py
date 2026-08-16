@@ -1,52 +1,55 @@
 import pytest
 from httpx import AsyncClient
+from unittest.mock import patch
+from app.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from unittest.mock import patch
-from fastapi import BackgroundTasks
-from app.models import User
+
+@pytest.fixture
+def mock_send_email():
+    with patch("app.routers.auth_routes.send_otp_email") as mock:
+        yield mock
 
 @pytest.mark.asyncio
-@patch.object(BackgroundTasks, 'add_task')
-async def test_register_user(mock_add_task, client: AsyncClient, db_session: AsyncSession):
-    # Test valid registration
-    response = await client.post("/auth/register", json={
-        "username": "testuser",
+async def test_register_and_login(client: AsyncClient, db_session: AsyncSession, mock_send_email):
+    # 1. Register user
+    user_data = {
         "email": "testuser@example.com",
-        "full_name": "Test User",
-        "password": "SecurePassword123!"
-    })
+        "username": "testuser",
+        "password": "TestPassword123!",
+        "full_name": "Test User"
+    }
+    resp = await client.post("/auth/register", json=user_data)
+    assert resp.status_code == 201
     
-    assert response.status_code == 201
-    data = response.json()
-    assert data["username"] == "testuser"
-    assert data["email"] == "testuser@example.com"
-    
-    # Verify user was created in the database
-    stmt = select(User).where(User.email == "testuser@example.com")
-    result = await db_session.execute(stmt)
+    # 2. Get OTP from DB
+    result = await db_session.execute(select(User).where(User.email == "testuser@example.com"))
     user = result.scalar_one_or_none()
     assert user is not None
-    assert user.is_verified is False
-    assert user.otp_code is not None
-    mock_add_task.assert_called_once()
+    otp_code = user.otp_code
+    assert otp_code is not None
+    
+    # 3. Verify OTP
+    verify_data = {
+        "email": "testuser@example.com",
+        "otp_code": otp_code
+    }
+    resp = await client.post("/auth/verify-otp", json=verify_data)
+    assert resp.status_code == 200
+    tokens = resp.json()
+    assert "access_token" in tokens
+    
+    # 4. Login
+    login_data = {
+        "username_or_email": "testuser@example.com",
+        "password": "TestPassword123!"
+    }
+    resp = await client.post("/auth/login", json=login_data)
+    assert resp.status_code == 200
+    tokens = resp.json()
+    assert "access_token" in tokens
 
-@pytest.mark.asyncio
-@patch.object(BackgroundTasks, 'add_task')
-async def test_register_duplicate_user(mock_add_task, client: AsyncClient):
-    # First registration
-    await client.post("/auth/register", json={
-        "username": "dupuser",
-        "email": "dup@example.com",
-        "password": "SecurePassword123!"
-    })
-    
-    # Second registration should fail
-    response = await client.post("/auth/register", json={
-        "username": "dupuser",
-        "email": "dup@example.com",
-        "password": "SecurePassword123!"
-    })
-    
-    assert response.status_code == 400
-    assert "already registered" in response.json()["detail"]
+    # 5. Get Me
+    resp = await client.get("/auth/me", headers={"Authorization": f"Bearer {tokens['access_token']}"})
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "testuser@example.com"

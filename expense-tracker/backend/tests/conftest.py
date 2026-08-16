@@ -60,3 +60,45 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
         
     app.dependency_overrides.clear()
+
+@pytest.fixture
+async def auth_client(client: AsyncClient, db_session: AsyncSession) -> AsyncClient:
+    """Provides a client authenticated as a normal user."""
+    from app.models import User
+    from app.auth import hash_password, create_access_token
+    
+    user = User(
+        email="user@test.com",
+        username="user1",
+        full_name="Normal User",
+        hashed_password=hash_password("testpass"),
+        is_verified=True,
+        role="user"
+    )
+    db_session.add(user)
+    await db_session.commit()
+    
+    token = create_access_token({"sub": str(user.id)})
+    client.headers = {"Authorization": f"Bearer {token}"}
+    return client
+
+@pytest.fixture
+async def admin_client(client: AsyncClient, db_session: AsyncSession) -> AsyncClient:
+    """Provides a client authenticated as an admin user."""
+    from app.models import User
+    from app.auth import hash_password, create_access_token
+    
+    admin = User(
+        email="admin@test.com",
+        username="admin1",
+        full_name="Admin User",
+        hashed_password=hash_password("testpass"),
+        is_verified=True,
+        role="admin"
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    
+    token = create_access_token({"sub": str(admin.id)})
+    client.headers = {"Authorization": f"Bearer {token}"}
+    return client

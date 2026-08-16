@@ -32,8 +32,10 @@ The Expense Tracker is a full-stack web application designed to help users manag
 *   **Automation & Planning**:
     *   **Recurring Expenses**: Background cron jobs automatically generate records for subscriptions (Netflix, Rent).
     *   **Budgets & Alerts**: Users set spending limits per category. The system fires alerts when nearing limits (e.g., 90%).
-*   **Multiplayer & Export**:
-    *   **Shared Wallets (Groups)**: Allow roommates or couples to share an expense book with "who owes who" settlements.
+*   **Multiplayer Finance (Splitwise-like)**:
+    *   **Shared Wallets (Groups)**: Users can create groups and invite members to share expenses.
+    *   **Expense Splitting**: Support for complex splitting logic (e.g., Equal, Exact Amount, Percentage) for group expenses.
+    *   **Settlement Engine**: A "Debt Simplification Algorithm" that computes the minimum number of transactions needed to settle all debts ("who owes who") within a group.
     *   **Advanced Analytics & Export**: View Month-over-Month heatmaps and export full data to CSV/PDF.
 
 ### 2.2 Non-Functional Requirements
@@ -109,6 +111,7 @@ The application runs locally using Docker Compose, orchestrating the following c
 7.  **Multi-Agent Orchestrator (LangGraph)**: A stateful AI supervisor managing specialized sub-agents (e.g., Analyst Agent, Action Agent) capable of autonomously querying and mutating user data via LangChain tools.
 8.  **Feature Flag Service (LaunchDarkly)**: Replaces the logical/JSON-based feature flags. Provides server-side local evaluation (zero-latency caching) for backend kill switches and client-side context hydration for React UI toggles.
 9.  **Background Worker / Cron**: A dedicated worker process (e.g., Celery/APScheduler) for processing recurring subscriptions and generating weekly AI insights.
+10. **Settlement Engine**: An algorithmic service that computes debt simplification for group expenses to minimize required payout transactions.
 
 ## 5. Deployment Architecture
 *   **Containerization**: Both the Backend and Frontend will be containerized using Docker.

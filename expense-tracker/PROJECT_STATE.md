@@ -203,8 +203,11 @@ CREATE TABLE categories (
 CREATE TABLE expenses (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
+    group_id INT FOREIGN KEY REFERENCES groups(id),
+    paid_by_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
     category_id INT FOREIGN KEY REFERENCES categories(id),
     amount FLOAT NOT NULL,
+    split_type VARCHAR DEFAULT 'EQUAL',
     description TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -213,13 +216,61 @@ CREATE TABLE expenses (
 
 **Fields**:
 - `id`: Primary key
-- `user_id`: Foreign key to users table
+- `user_id`: Foreign key to users table (creator)
+- `group_id`: Foreign key to groups table (optional)
+- `paid_by_id`: Foreign key to users table (who paid)
 - `category_id`: Foreign key to categories table (optional)
 - `amount`: Expense amount (required)
+- `split_type`: Type of split (EQUAL, EXACT, PERCENTAGE)
 - `description`: Expense description (optional)
 - `created_at`: Record creation timestamp
 - `updated_at`: Last update timestamp
-- **Relationship**: Many-to-One with Users, Many-to-One with Categories
+- **Relationship**: Many-to-One with Users, Groups, Categories. One-to-Many with ExpenseSplits.
+
+#### Groups Table (Multiplayer Finance)
+```sql
+CREATE TABLE groups (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    description TEXT,
+    created_by_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+)
+```
+
+#### GroupMembers Table
+```sql
+CREATE TABLE group_members (
+    group_id INT FOREIGN KEY REFERENCES groups(id),
+    user_id INT FOREIGN KEY REFERENCES users(id),
+    joined_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (group_id, user_id)
+)
+```
+
+#### ExpenseSplits Table
+```sql
+CREATE TABLE expense_splits (
+    id SERIAL PRIMARY KEY,
+    expense_id INT NOT NULL FOREIGN KEY REFERENCES expenses(id),
+    user_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
+    amount_owed FLOAT NOT NULL
+)
+```
+
+#### Settlements Table
+```sql
+CREATE TABLE settlements (
+    id SERIAL PRIMARY KEY,
+    group_id INT NOT NULL FOREIGN KEY REFERENCES groups(id),
+    payer_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
+    payee_id INT NOT NULL FOREIGN KEY REFERENCES users(id),
+    amount FLOAT NOT NULL,
+    status VARCHAR DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT NOW()
+)
+```
 
 ### ORM Classes Location
 - **File**: [`backend/app/models.py`](backend/app/models.py)
@@ -228,7 +279,7 @@ CREATE TABLE expenses (
 
 ### Validation Schemas Location
 - **File**: [`backend/app/schemas.py`](backend/app/schemas.py)
-- **Schemas**: UserCreate, UserResponse, UserLogin, UserUpdate, ExpenseCreate, ExpenseResponse, ExpenseUpdate, CategoryCreate, CategoryResponse, TokenResponse, OTPVerifyRequest
+- **Schemas**: UserCreate, UserResponse, UserLogin, UserUpdate, ExpenseCreate, ExpenseResponse, ExpenseUpdate, CategoryCreate, CategoryResponse, TokenResponse, OTPVerifyRequest, GroupCreate, GroupResponse, SettlementCreate, SettlementResponse
 - **Type**: Pydantic models for request/response validation
 
 ---
@@ -419,67 +470,118 @@ Frontend (localhost:5173)
 expense-tracker/
 ├── docker-compose.yml           ← Multi-service orchestration
 ├── .gitignore                   ← Repository ignore rules
-├── README.md                    ← Main documentation
 ├── PROJECT_STATE.md             ← This file (persistent memory)
+├── TODO.md                      ← Phase-by-phase development roadmap
+├── Jenkinsfile                  ← CI/CD Pipeline definition
+├── sonar-project.properties     ← SonarQube code quality config
+├── start-dev.ps1                ← Windows dev environment startup script
+├── stop-dev.ps1                 ← Windows dev environment stop script
 │
 ├── backend/
 │   ├── Dockerfile               ← Multi-stage build
 │   ├── .dockerignore            ← Build context excludes
-│   ├── main.py                  ← FastAPI application
+│   ├── .gitignore               ← Backend specific ignores
+│   ├── main.py                  ← FastAPI application entry point
+│   ├── alembic.ini              ← Alembic migrations config
+│   ├── pytest.ini               ← Test runner config
+│   ├── reset_db.py              ← Database reset utility
+│   ├── run_migrations.py        ← Alembic migration runner
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── database.py          ← Async connection pool
+│   │   ├── auth.py              ← JWT auth, password hashing, token management
+│   │   ├── database.py          ← Async connection pool (SQLAlchemy)
+│   │   ├── email_utils.py       ← OTP email sending utilities
+│   │   ├── exceptions.py        ← Custom exception classes
+│   │   ├── feature_flags.py     ← Feature flag evaluation logic
+│   │   ├── logger.py            ← Structured logging setup
 │   │   ├── models.py            ← SQLAlchemy ORM models
-│   │   ├── schemas.py           ← Pydantic validation
-│   │   └── auth.py              ← [NEW] JWT auth, password hashing, token management
+│   │   ├── rate_limiter.py      ← API rate limiting middleware
+│   │   ├── schemas.py           ← Pydantic request/response schemas
+│   │   └── routers/
+│   │       ├── auth_routes.py   ← Auth endpoints (register, login, OTP, refresh)
+│   │       ├── category_routes.py ← Category CRUD endpoints
+│   │       ├── expense_routes.py  ← Expense CRUD endpoints
+│   │       └── user_routes.py     ← User management endpoints
+│   ├── alembic/                 ← Database migration scripts
 │   ├── config/
 │   │   ├── requirements.txt     ← Python dependencies
-│   │   ├── .env.example         ← Env template
-│   │   └── wrangler.toml        ← Cloudflare Workers config
+│   │   ├── .env.development     ← Dev environment variables
+│   │   ├── .env.prod            ← Production environment variables
+│   │   └── .env.val             ← Validation environment variables
+│   ├── load_tests/              ← Locust load test scripts
 │   ├── scripts/
 │   │   ├── setup_db.py          ← Windows setup wizard
 │   │   ├── setup_bash.sh        ← macOS/Linux setup
 │   │   └── test_db_connection.py ← Connection tester
-│   ├── docs/
-│   │   ├── POSTGRES_SETUP.md    ← PostgreSQL guide
-│   │   ├── DB_INTEGRATION.md    ← DB integration reference
-│   │   └── QUICK_REFERENCE.md   ← Quick commands
-│   └── .gitignore               ← Backend specific ignores
+│   └── tests/                   ← Pytest unit tests
 │
 ├── frontend/
+│   ├── Dockerfile               ← Frontend container build
 │   ├── package.json             ← Node dependencies
-│   ├── vite.config.js           ← Vite configuration
+│   ├── package-lock.json        ← Lockfile
+│   ├── vite.config.js           ← Vite configuration + API proxy
 │   ├── tailwind.config.js       ← Tailwind CSS config
 │   ├── postcss.config.js        ← PostCSS config
 │   ├── index.html               ← HTML entry point
 │   └── src/
 │       ├── main.jsx             ← React entry point
-│       ├── App.jsx              ← Root component
+│       ├── App.jsx              ← Root component and routing
 │       ├── index.css            ← Global styles
 │       ├── components/
-│       │   └── OtpInput.jsx     ← [NEW] Custom OTP input UI
+│       │   ├── CategoryManager.jsx ← Category creation/deletion UI
+│       │   ├── MainLayout.jsx      ← Page shell with sidebar
+│       │   ├── Navigation.jsx      ← Top navigation bar
+│       │   ├── OtpInput.jsx        ← Custom OTP input UI
+│       │   ├── ProtectedRoute.jsx  ← Auth-gated route wrapper
+│       │   └── Sidebar.jsx         ← Navigation sidebar
 │       ├── context/
-│       │   └── AuthContext.jsx   ← [NEW] Auth state, token refresh, useAuth hook
-│       └── pages/
-│           ├── Login.jsx         ← [NEW] Login page
-│           └── Register.jsx     ← [NEW] Registration page
+│       │   ├── AuthContext.jsx     ← Auth state, token refresh, useAuth hook
+│       │   ├── FeatureFlagContext.jsx ← Feature flag provider
+│       │   └── ToastContext.jsx     ← Toast notification provider
+│       ├── hooks/
+│       │   └── useAuth.js          ← useAuth convenience hook
+│       ├── pages/
+│       │   ├── AddExpense.jsx      ← Add expense form
+│       │   ├── Dashboard.jsx       ← Home dashboard with charts
+│       │   ├── EditExpense.jsx     ← Edit expense form
+│       │   ├── ExpenseList.jsx     ← Expense list with filters
+│       │   ├── Login.jsx           ← Login page
+│       │   ├── Profile.jsx         ← User profile management
+│       │   ├── Register.jsx        ← Registration page
+│       │   └── Settings.jsx        ← Application settings
+│       └── services/
+│           ├── api.js              ← API service layer (all fetch calls)
+│           └── categoryDetector.js ← AI-based auto-categorization
 │
 ├── docs/
-│   ├── TERRAFORM_SETUP.md       ← Infrastructure deployment guide
-│   ├── JENKINS_SETUP.md         ← Jenkins CI/CD setup guide
+│   ├── AGENTIC_AI_SETUP.md      ← LangGraph multi-agent AI setup guide
 │   ├── DEPLOYMENT_CHECKLIST.md  ← Per-environment deployment checklist
-│   ├── DOCKER_SETUP.md          ← Full Docker guide
-│   ├── DOCKER_QUICK_REF.md      ← Docker command reference
-│   └── DOCKER_ARCHITECTURE.txt  ← Architecture overview
+│   ├── FEATURE_FLAGS_AND_RBAC.md ← ⚠️ DEPRECATED (see launchdarkly guide)
+│   ├── JENKINS_SETUP.md         ← Jenkins CI/CD pipeline setup guide
+│   ├── OBSERVABILITY_GUIDE.md   ← Grafana + Loki + Promtail guide
+│   ├── RBAC.md                  ← Role-Based Access Control tiers
+│   ├── TERRAFORM_SETUP.md       ← Terraform IaC deployment guide
+│   ├── TESTING_GUIDE.md         ← Pytest unit tests and Locust guide
+│   ├── USER_GUIDE.md            ← End-user feature overview
+│   └── launchdarkly-integration-guide.md ← LaunchDarkly SDK integration
+│
+├── architecture-study/
+│   ├── high-level-design.md     ← System architecture and requirements
+│   ├── low-level-design.md      ← Design patterns, DB schema, API spec
+│   └── security-checklist.md   ← OWASP ASVS / CIS / NIST checklist
+│
 ├── infrastructure/
 │   ├── environments/
 │   │   ├── dev.tfvars           ← Development environment config
 │   │   ├── staging.tfvars       ← Staging environment config
 │   │   └── prod.tfvars          ← Production environment config
+│   ├── main.tf                  ← Terraform resource definitions
+│   ├── outputs.tf               ← Terraform outputs (URLs, flags)
 │   ├── providers.tf             ← Terraform provider config (GCS backend)
-│   ├── variables.tf             ← Terraform input variables + feature flags
-│   ├── main.tf                  ← Terraform resource definitions (env-scoped)
-│   └── outputs.tf               ← Terraform outputs (URLs, flags)
+│   └── variables.tf             ← Terraform input variables
+│
+└── .agents/
+    ├── CONTEXT.md               ← AI agent instructions and project rules
+    └── skills/                  ← Agent skill definitions
 ```
 
 ---

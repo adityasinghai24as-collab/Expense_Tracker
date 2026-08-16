@@ -681,10 +681,20 @@ Open [`backend/app/database.py`](backend/app/database.py). You will complete **T
 - [ ] Save GPS coordinates of where the transaction occurred.
 
 ### 11.4 Multiplayer Finance
-#### Task 56 — Shared Wallets (Groups)
-- [ ] Create `Group` model and `GroupMember` association table.
-- [ ] Update endpoints to allow expenses to belong to a Group instead of a single user.
-- [ ] Implement a settlement engine ("who owes who") similar to Splitwise.
+#### Task 56 — Shared Wallets & Splitwise Features
+- [ ] **Database Schema Updates**:
+  - [ ] Create `Group` model and `GroupMember` association table.
+  - [ ] Create `ExpenseSplit` entity mapping users to exact amounts owed.
+  - [ ] Create `Settlement` entity for tracking debt payments between users.
+  - [ ] Update `Expense` entity with `group_id`, `paid_by_id`, and `split_type`.
+- [ ] **Settlement Engine (Debt Simplification)**:
+  - [ ] Implement an algorithm to calculate net balances for all group members.
+  - [ ] Implement a greedy matching algorithm to minimize transactions (Debtors to Creditors).
+- [ ] **Group & Expense Endpoints**:
+  - [ ] `POST /groups`, `GET /groups`, `POST /groups/{id}/members`.
+  - [ ] Modify `POST /expenses` to accept `split_type` and a list of specific `ExpenseSplit` records.
+  - [ ] `GET /groups/{id}/balances` to expose the simplified debt graph.
+  - [ ] `POST /groups/{id}/settlements` to record a payment and clear debt.
 
 ---
 

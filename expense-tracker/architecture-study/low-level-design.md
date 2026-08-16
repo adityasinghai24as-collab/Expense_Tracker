@@ -47,18 +47,50 @@ The core data models are defined in [`backend/app/models.py`](../backend/app/mod
 
 ### 2.3 `Expense` Entity
 *   `id` (Integer, Primary Key)
-*   `user_id` (Integer, Foreign Key to `users.id`)
+*   `user_id` (Integer, Foreign Key to `users.id`) - The creator of the expense
+*   `group_id` (Integer, Foreign Key to `groups.id`, Nullable) - If set, this is a shared group expense
+*   `paid_by_id` (Integer, Foreign Key to `users.id`) - Who actually paid the total amount
 *   `category_id` (Integer, Foreign Key to `categories.id`, Nullable)
 *   `amount` (Float)
+*   `split_type` (String, Default: "EQUAL") - How it's split (EQUAL, EXACT, PERCENTAGE)
 *   `description` (Text, Nullable)
 *   `receipt_image_url` (String, Nullable) - *Planned for AI Receipt Scanning*
 *   `ai_metadata` (JSON, Nullable) - *Planned: Stores AI confidence scores and raw extracted data*
 *   `created_at` (DateTime)
 *   `updated_at` (DateTime)
 
+### 2.4 `Group` Entity (Multiplayer Finance)
+*   `id` (Integer, Primary Key)
+*   `name` (String, Indexed)
+*   `description` (String, Nullable)
+*   `created_by_id` (Integer, Foreign Key to `users.id`)
+*   `created_at` (DateTime)
+*   `updated_at` (DateTime)
+
+### 2.5 `GroupMember` Entity (Association)
+*   `group_id` (Integer, Foreign Key to `groups.id`, Primary Key)
+*   `user_id` (Integer, Foreign Key to `users.id`, Primary Key)
+*   `joined_at` (DateTime)
+
+### 2.6 `ExpenseSplit` Entity
+*   `id` (Integer, Primary Key)
+*   `expense_id` (Integer, Foreign Key to `expenses.id`)
+*   `user_id` (Integer, Foreign Key to `users.id`) - Who owes the amount
+*   `amount_owed` (Float) - The exact portion owed by this user
+
+### 2.7 `Settlement` Entity
+*   `id` (Integer, Primary Key)
+*   `group_id` (Integer, Foreign Key to `groups.id`)
+*   `payer_id` (Integer, Foreign Key to `users.id`) - Who is paying the debt
+*   `payee_id` (Integer, Foreign Key to `users.id`) - Who is receiving the money
+*   `amount` (Float)
+*   `status` (String, Default: "PENDING") - PENDING or COMPLETED
+*   `created_at` (DateTime)
+
 **Relationships**:
-- A `User` has a one-to-many relationship with `Expense` and `Category`. Deleting a user cascades and deletes associated expenses and categories.
-- A `Category` has a one-to-many relationship with `Expense`.
+- A `User` has a one-to-many relationship with `Expense`, `Category`, and `Group`.
+- A `Group` has a many-to-many relationship with `User` (via `GroupMember`) and one-to-many with `Expense` and `Settlement`.
+- An `Expense` has a one-to-many relationship with `ExpenseSplit`.
 
 ## 3. API Specification (Implemented Endpoints)
 
@@ -99,6 +131,11 @@ Routes are organized using `APIRouter` in [`backend/app/routers/`](../backend/ap
 *   `GET /analytics/insights` - LLM-generated spending insights.
 *   `POST /ai/chat` - Multi-agent AI advisor (REST or WebSocket).
 *   `GET /admin/feature-flags` - Active feature flags for the environment.
+*   `POST /groups` - Create a shared wallet group.
+*   `GET /groups` - List user's active groups.
+*   `POST /groups/{id}/members` - Add a member to a group.
+*   `GET /groups/{id}/balances` - View simplified debt graph (who owes who).
+*   `POST /groups/{id}/settlements` - Record a debt settlement payment.
 
 ## 4. Frontend Component Architecture
 

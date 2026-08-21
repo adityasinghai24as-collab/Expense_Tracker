@@ -4,7 +4,9 @@
 # NEVER push environment variables or local process trackers
 .dev.pids
 .env
-.env.local
+.env.*
+!.env.example
+!.env.sample
 .dev.vars
 *.pem
 
@@ -57,3 +59,18 @@ Thumbs.db
 # VS Code / JetBrains
 .vscode/
 .idea/
+
+# =========================
+# Helper Documentation
+# =========================
+TODO.md
+docs/AGENTIC_AI_SETUP.md
+docs/JENKINS_SETUP.md
+docs/TERRAFORM_SETUP.md
+docs/launchdarkly-integration-guide.md
+docs/FEATURE_FLAGS_AND_RBAC.md
+docs/OBSERVABILITY_GUIDE.md
+docs/RBAC.md
+docs/TESTING_GUIDE.md
+docs/USER_GUIDE.md
+docs/DEPLOYMENT_CHECKLIST.md

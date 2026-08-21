@@ -4,67 +4,39 @@
     "type": "split",
     "children": [
       {
-        "id": "26b2baa124349456",
+        "id": "df3edbe486314dc4",
         "type": "tabs",
-        "dimension": 62.83557046979866,
+        "dimension": 62.10021321961621,
         "children": [
           {
-            "id": "56ca9d61b428217b",
+            "id": "43468bbfac63294c",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/OBSERVABILITY_GUIDE.md",
-                "mode": "preview",
+                "file": "PROJECT_STATE.md",
+                "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "OBSERVABILITY_GUIDE"
+              "title": "PROJECT_STATE"
             },
-            "group": "5e6f3c64ef68efb3"
-          },
-          {
-            "id": "f17aab63ced3ec76",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "docs/USER_GUIDE.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "USER_GUIDE"
-            }
-          },
-          {
-            "id": "ee55daebc2231bed",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "TODO.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "TODO"
-            }
+            "group": "ab8f7d64c9201c1b"
           }
         ]
       },
       {
-        "id": "989e12a852a50413",
+        "id": "bb8b2166305902b7",
         "type": "tabs",
-        "dimension": 37.164429530201346,
+        "dimension": 37.89978678038379,
         "children": [
           {
-            "id": "343c896b4f053434",
+            "id": "025d49f0dbe8967f",
             "type": "leaf",
             "state": {
               "type": "localgraph",
               "state": {
-                "file": "docs/OBSERVABILITY_GUIDE.md",
+                "file": "PROJECT_STATE.md",
                 "options": {
                   "collapse-filter": true,
                   "search": "",
@@ -88,13 +60,13 @@
                   "linkStrength": 1,
                   "linkDistance": 250,
                   "scale": 1,
-                  "close": true
+                  "close": false
                 }
               },
               "icon": "lucide-git-fork",
-              "title": "Graph of OBSERVABILITY_GUIDE"
+              "title": "Graph of PROJECT_STATE"
             },
-            "group": "5e6f3c64ef68efb3"
+            "group": "ab8f7d64c9201c1b"
           }
         ]
       }
@@ -130,7 +102,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "grafana",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -175,7 +147,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "docs/OBSERVABILITY_GUIDE.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -194,7 +165,6 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "docs/OBSERVABILITY_GUIDE.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
@@ -237,7 +207,6 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "docs/OBSERVABILITY_GUIDE.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
@@ -264,8 +233,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "56ca9d61b428217b",
+  "active": "025d49f0dbe8967f",
   "lastOpenFiles": [
+    "docs/RBAC.md",
+    "PROJECT_STATE.md",
+    "docs/OBSERVABILITY_GUIDE.md",
+    "docs/USER_GUIDE.md",
+    "TODO.md",
     "frontend/src/services/api.test.js",
     "frontend/src/context/FeatureFlagContext.test.jsx",
     "frontend/src/pages/Register.test.jsx",
@@ -276,19 +250,13 @@
     "backend/tests/test_rbac.py",
     "backend/tests/test_categories.py",
     "backend/tests/test_expenses.py",
-    "backend/tests/test_users.py",
     "architecture-study/high-level-design.md",
-    "PROJECT_STATE.md",
     "frontend/node_modules/axios/CHANGELOG.md",
     "frontend/node_modules/react-router/docs/how-to/client-data.md",
-    "docs/OBSERVABILITY_GUIDE.md",
-    "TODO.md",
-    "docs/USER_GUIDE.md",
     "docs/DEPLOYMENT_CHECKLIST.md",
     "docs/AGENTIC_AI_SETUP.md",
     "architecture-study/low-level-design.md",
     "architecture-study/security-checklist.md",
-    "docs/RBAC.md",
     "docs/TESTING_GUIDE.md"
   ]
 }
